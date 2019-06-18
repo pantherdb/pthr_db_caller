@@ -131,42 +131,47 @@ class DBCaller:
             except json.decoder.JSONDecodeError:
                 query_variables = query_variables.split(",")
         if not path.isfile(qfile):
-            print("ERROR: No such query file '{}'.".format(qfile))
-            exit()
+            # print("ERROR: No such query file '{}'.".format(qfile))
+            # exit()
+            # Try as query text
+            query_text = qfile
+        else:
+            with open(qfile) as qf:
+                query_text = qf.read()
         # rows_outfile = None
         if rows_outfile:
             rows_outfile = open(rows_outfile, "w+")
-        with open(qfile) as qf:
-            con = self.get_connection()
-            query_text = qf.read()
-            # results = []
-            query_text = self.clean_file(query_text)
-            query_statements = query_text.split(";")
-            query_statements = list(filter(None, query_statements)) # Filter out empty strings
-            if query_variables and len(query_statements) > 1:
-                print("WARNING: Should be careful using query variables for multi-statement SQL files")
-                # exit()
-            for statement in query_statements:
-                # Add block if variables and multi-statement
-                cleaned_query = self.clean_query(statement, query_variables=query_variables)
-                if cleaned_query:
-                    start_time = datetime.datetime.now()
-                    results = self.exec_query(con, cleaned_query + ";", omit_header=no_header_footer)
-                    if delimiter:
-                        formatted_results = self.format_results(results, delimiter=delimiter)
+        # with open(qfile) as qf:
+        con = self.get_connection()
+        # query_text = qf.read()
+        # results = []
+        query_text = self.clean_file(query_text)
+        query_statements = query_text.split(";")
+        query_statements = list(filter(None, query_statements)) # Filter out empty strings
+        if query_variables and len(query_statements) > 1:
+            print("WARNING: Should be careful using query variables for multi-statement SQL files")
+            # exit()
+        for statement in query_statements:
+            # Add block if variables and multi-statement
+            cleaned_query = self.clean_query(statement, query_variables=query_variables)
+            if cleaned_query:
+                start_time = datetime.datetime.now()
+                results = self.exec_query(con, cleaned_query + ";", omit_header=no_header_footer)
+                if delimiter:
+                    formatted_results = self.format_results(results, delimiter=delimiter)
+                else:
+                    formatted_results = self.format_results(results)
+                for r in formatted_results:
+                    if rows_outfile:
+                        rows_outfile.write("{}\n".format(r))
                     else:
-                        formatted_results = self.format_results(results)
-                    for r in formatted_results:
-                        if rows_outfile:
-                            rows_outfile.write("{}\n".format(r))
-                        else:
-                            print(r)
-                    if no_header_footer is None:
-                        if len(results) > 0:    # Display row count unless insert, update, set, etc.
-                            print("Rows returned:", len(results) - 1)
-                        print("Execution time:", datetime.datetime.now() - start_time, "- Host:", self.config.host, "- DB:", self.config.dbname)
-            con.commit()
-            con.close()
+                        print(r)
+                if no_header_footer is None:
+                    if len(results) > 0:    # Display row count unless insert, update, set, etc.
+                        print("Rows returned:", len(results) - 1)
+                    print("Execution time:", datetime.datetime.now() - start_time, "- Host:", self.config.host, "- DB:", self.config.dbname)
+        con.commit()
+        con.close()
         if rows_outfile:
             rows_outfile.close()
         return results
