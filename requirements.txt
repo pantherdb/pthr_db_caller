@@ -1,2 +1,4 @@
 psycopg2==2.7.4
 PyYAML==3.12
+biopython==1.73
+networkx==2.3
