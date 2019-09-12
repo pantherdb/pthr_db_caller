@@ -1,5 +1,6 @@
 import csv
 from typing import List
+from pthr_db_caller.config import BuildConfig
 
 
 class PthrSequence:
@@ -34,7 +35,13 @@ class RefProtPantherMappingEntry:
 
     @classmethod
     def from_row(cls, csv_row: List[str]):
-        uniprot_id, long_id, symbol, family, description, old_long_id, mapping_method = csv_row
+        vals = [el.strip() for el in csv_row]
+
+        # Mapping file is expected to be 7 cols long
+        if len(vals) > 7:
+            vals = vals[:7]
+            
+        uniprot_id, long_id, symbol, family, description, old_long_id, mapping_method = vals
         long_id = PthrSequence(long_id)
         if len(old_long_id) > 0:
             old_long_id = PthrSequence(old_long_id)
@@ -120,6 +127,9 @@ class TaxonomyDetails:
     #  RP_taxonomy_organism_lib##.txt
 
     def __init__(self, ref_prot_readme=None):
+        if not ref_prot_readme:
+            cfg = BuildConfig()
+            ref_prot_readme = cfg.properties['README_Reference_Proteome']
         self.readme_tax_details = self.parse_readme(ref_prot_readme)
 
     @staticmethod
@@ -147,3 +157,9 @@ class TaxonomyDetails:
 
     def find_ref_prot_detail(self, search_term, field):
         return self.find_readme_detail(self.readme_tax_details, search_term, field)
+
+    def find_by_oscode(self, oscode):
+        return self.find_ref_prot_detail(oscode, 'oscode')
+
+    def find_by_tax_id(self, tax_id):
+        return self.find_ref_prot_detail(tax_id, 'tax_id')
