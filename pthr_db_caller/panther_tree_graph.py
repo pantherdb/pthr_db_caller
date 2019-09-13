@@ -77,7 +77,7 @@ class PantherTreeGraph(MultiDiGraph):
         species, id = extract_clade_name(clade.comment)
         if clade.name is None:
             clade.name = id
-        if clade.name not in self.nodes:
+        if clade.name not in self.nodes():
             self.add_node(clade.name)
         if species:
             self.nodes[clade.name]["species"] = species
