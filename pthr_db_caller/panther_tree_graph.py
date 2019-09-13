@@ -88,6 +88,12 @@ class PantherTreeGraph(MultiDiGraph):
     def descendants(self, node):
         return list(networkx.descendants(self, node))
 
+    def parents(self, node):
+        return list(self.predecessors(node))
+
+    def children(self, node):
+        return list(self.successors(node))
+
     def nodes_between(self, ancestor_node, descendant_node):
         descendants_of_anc = self.descendants(ancestor_node)
         ancestors_of_desc = self.ancestors(descendant_node)
