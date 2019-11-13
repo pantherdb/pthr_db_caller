@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pthr_db_caller",
-    version='0.0.6',
+    version='0.0.7',
     packages=find_packages(),
     author="dustine32",
     author_email="debert@usc.edu",
@@ -12,6 +12,7 @@ setup(
     install_requires=[
         "psycopg2==2.7.4",
         "biopython==1.73",
-        "networkx==2.3"
+        "networkx==2.3",
+        "matplotlib==3.1.1"
     ]
 )
