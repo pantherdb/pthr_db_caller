@@ -29,7 +29,7 @@ class PthrSequence:
 
 
 class RefProtPantherMappingEntry:
-    def __init__(self, uniprot_id, long_id: PthrSequence, symbol, family, description, mapping_method, old_long_id: PthrSequence = None):
+    def __init__(self, uniprot_id, long_id: PthrSequence, symbol, family, description, mapping_method, old_long_id: PthrSequence = None, extras = None):
         self.uniprot_id = uniprot_id
         self.long_id = long_id
         self.symbol = symbol
@@ -37,20 +37,23 @@ class RefProtPantherMappingEntry:
         self.description = description
         self.old_long_id = old_long_id
         self.mapping_method = mapping_method
+        self.extras = extras  # any trailing fields - consumer scripts should know what to do with this
 
     @classmethod
     def from_row(cls, csv_row: List[str]):
         vals = [el.strip() for el in csv_row]
 
-        # Mapping file is expected to be 7 cols long
+        # Mapping file is expected to be 7 cols long - but do save the 'extras'
+        extras = None
         if len(vals) > 7:
+            extras = vals[7:]
             vals = vals[:7]
             
         uniprot_id, long_id, symbol, family, description, old_long_id, mapping_method = vals
         long_id = PthrSequence(long_id)
         if len(old_long_id) > 0:
             old_long_id = PthrSequence(old_long_id)
-        entry = cls(uniprot_id, long_id, symbol, family, description, mapping_method, old_long_id=old_long_id)
+        entry = cls(uniprot_id, long_id, symbol, family, description, mapping_method, old_long_id=old_long_id, extras=extras)
         return entry
 
     def __str__(self):
@@ -68,6 +71,8 @@ class RefProtPantherMappingEntry:
             old_long_id,
             self.mapping_method
         ]
+        if self.extras:
+            line_elements = line_elements + self.extras
         return "\t".join(line_elements)
 
 
