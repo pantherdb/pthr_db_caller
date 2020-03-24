@@ -237,10 +237,11 @@ class ProteinClassRelationship:
         with open(filename) as rf:
             reader = csv.reader(rf, delimiter="\t")
             for r in reader:
-                parent_class = ProteinClass(r[2], description=r[3])
-                child_class = ProteinClass(r[0], description=r[1])
-                pc_relationships.append(ProteinClassRelationship(parent=parent_class,
-                                                                 child=child_class))
+                if len(r) > 0 and r[0].startswith("PC"):
+                    parent_class = ProteinClass(r[2], description=r[3])
+                    child_class = ProteinClass(r[0], description=r[1])
+                    pc_relationships.append(ProteinClassRelationship(parent=parent_class,
+                                                                    child=child_class))
         return pc_relationships
 
 
@@ -285,8 +286,8 @@ class PthrToPc:
         pc_annots_list = []
         for pca in pc_annots:
             if len(pca) > 0:
-                pc_bits = pca.split(" - ")
-                pc_id = pc_bits[0]
+                pc_bits = pca.split(" - ")  # TODO: Allow for extra whitespace
+                pc_id = pc_bits[0].rstrip()
                 # pc_description = None
                 is_valid = True
                 if len(pc_bits) > 1:

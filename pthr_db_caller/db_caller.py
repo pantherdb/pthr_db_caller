@@ -29,9 +29,15 @@ class DBCallerConfig:
         self.dbname = chosen_df["dbname"]
         self.username = chosen_df["username"]
         self.pword = chosen_df["pword"]
-        self.db_version = chosen_df.get("db_version")
-        self.load_dir = chosen_df.get("load_dir")
-        self.classification_version_sid = chosen_df.get("classification_version_sid")
+        
+        # Beyond the above DB connection properties, any other properties in a DB definition 
+        #  will be handled as query variables.
+        self.query_variables = {}
+        for k, v in chosen_df.items():
+            if k in ["id", "host", "dbname", "username", "pword"]:
+                continue
+            else:
+                self.query_variables[k] = v
 
 
 class DBCaller:
@@ -82,12 +88,9 @@ class DBCaller:
 
     def handle_config_variables(self, raw_query):
         cleaned_query = raw_query
-        if "{load_dir}" in cleaned_query:
-            # load_dir = chosen_df.get("load_dir")
-            cleaned_query = cleaned_query.replace("{load_dir}", self.config.load_dir)
-        if "{classification_version_sid}" in cleaned_query:
-            # classification_version_sid = chosen_df.get("classification_version_sid")
-            cleaned_query = cleaned_query.replace("{classification_version_sid}", str(self.config.classification_version_sid))
+        for query_variable, var_value in self.config.query_variables.items():
+            if f"{{{query_variable}}}" in cleaned_query:
+                cleaned_query = cleaned_query.replace(f"{{{query_variable}}}", str(var_value))
         return cleaned_query
 
     def clean_query(self, raw_query, query_variables=None):
