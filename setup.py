@@ -13,6 +13,7 @@ setup(
         "psycopg2==2.7.4",
         "biopython==1.73",
         "networkx==2.3",
-        "matplotlib==3.1.1"
+        "matplotlib==3.1.1",
+        "PyYAML==3.12"
     ]
 )
