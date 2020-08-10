@@ -1,6 +1,6 @@
 import unittest
 from pthr_db_caller.models.panther import RefProtPantherMapping
-from ref_prot_id_mapping import RefProtGeneAccFile, RefProtIdmappingFile
+from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile
 
 
 class TestRefProtMapping(unittest.TestCase):
