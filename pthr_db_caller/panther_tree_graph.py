@@ -1,5 +1,6 @@
 import networkx
 from networkx import MultiDiGraph
+from typing import List
 from Bio import Phylo
 from io import StringIO
 
@@ -45,10 +46,10 @@ def extract_clade_name(clade_comment):
     return new_comment, an_id
 
 
-class PantherTreeGraph(MultiDiGraph):
+class PantherTreeGraph:
 
     def __init__(self, tree_file):
-        MultiDiGraph.__init__(self)
+        self.graph = MultiDiGraph()
 
         self.phylo = PantherTreePhylo(tree_file)
 
@@ -60,7 +61,7 @@ class PantherTreeGraph(MultiDiGraph):
         self.add_node_from_clade(parent_clade)
         for child in parent_clade.clades:
             self.add_node_from_clade(child)
-            self.add_edge(parent_clade.name, child.name)
+            self.graph.add_edge(parent_clade.name, child.name)
 
             if len(child.clades) > 0:
                 self.add_children(child)
@@ -77,24 +78,36 @@ class PantherTreeGraph(MultiDiGraph):
         species, id = extract_clade_name(clade.comment)
         if clade.name is None:
             clade.name = id
-        if clade.name not in self.nodes():
-            self.add_node(clade.name)
+        if clade.name not in self.graph.nodes():
+            self.graph.add_node(clade.name)
         if species:
-            self.nodes[clade.name]["species"] = species
+            self.graph.nodes[clade.name]["species"] = species
 
-    def ancestors(self, node):
-        return list(networkx.ancestors(self, node))
+    def ancestors(self, node, reflexive=False):
+        nodes = list(networkx.ancestors(self.graph, node))
+        if reflexive:
+            nodes.append(node)
+        return nodes
 
-    def descendants(self, node):
-        return list(networkx.descendants(self, node))
+    def descendants(self, node, reflexive=False):
+        nodes = list(networkx.descendants(self.graph, node))
+        if reflexive:
+            nodes.append(node)
+        return nodes
 
     def parents(self, node):
-        return list(self.predecessors(node))
+        return list(self.graph.predecessors(node))
 
     def children(self, node):
-        return list(self.successors(node))
+        return list(self.graph.successors(node))
+
+    def subgraph(self, nodes: List):
+        return self.graph.subgraph(nodes)
 
     def nodes_between(self, ancestor_node, descendant_node):
         descendants_of_anc = self.descendants(ancestor_node)
         ancestors_of_desc = self.ancestors(descendant_node)
         return list(set(descendants_of_anc) & set(ancestors_of_desc))
+
+    def __len__(self):
+        return len(self.graph)
