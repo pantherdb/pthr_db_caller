@@ -47,14 +47,8 @@ def extract_clade_name(clade_comment):
 
 
 class PantherTreeGraph:
-
-    def __init__(self, tree_file):
+    def __init__(self):
         self.graph = MultiDiGraph()
-
-        self.phylo = PantherTreePhylo(tree_file)
-
-        # Fill graph from Phylo obj
-        self.add_children(self.phylo.tree.clade)
 
     # Recursive method to fill graph from Phylo clade, parsing out node accession and species name (if present)
     def add_children(self, parent_clade):
@@ -83,6 +77,37 @@ class PantherTreeGraph:
         if species:
             self.graph.nodes[clade.name]["species"] = species
 
+    def extract_leaf_ids(self, tree_file):
+        with open(tree_file) as tf:
+            tf.readline()  # ignore first line, it's parsed already
+            for l in tf.readlines():
+                an_id, long_id = l.split(":", maxsplit=1)
+                long_id = long_id.rstrip().rstrip(";")
+                if an_id in self.graph:
+                    self.graph.node[an_id]["long_id"] = long_id
+
+    @staticmethod
+    def parse(tree_file: str):
+        pthr_tree_graph = PantherTreeGraph()
+
+        # Parse Newick line
+        phylo = PantherTreePhylo(tree_file)
+        # Fill networkx graph from Phylo obj
+        pthr_tree_graph.add_children(phylo.tree.clade)
+        # Fill in long IDs on leaf nodes
+        pthr_tree_graph.extract_leaf_ids(tree_file)
+
+        return pthr_tree_graph
+
+    def node(self, node):
+        return self.graph.node.get(node)
+
+    def root(self):
+        for n in self.graph.nodes():
+            # This criteria is asking to be abused
+            if self.parents(n) == []:
+                return n
+
     def ancestors(self, node, reflexive=False):
         nodes = list(networkx.ancestors(self.graph, node))
         if reflexive:
@@ -101,8 +126,25 @@ class PantherTreeGraph:
     def children(self, node):
         return list(self.graph.successors(node))
 
+    def leaves(self, node=None):
+        leaves = []
+        if node is None:
+            node = self.root()
+        for n in self.descendants(node):
+            if self.children(n):
+                continue  # Has children so not a leaf
+            leaves.append(n)
+        return leaves
+
     def subgraph(self, nodes: List):
-        return self.graph.subgraph(nodes)
+        return self.graph.subgraph(nodes).copy()
+
+    def subtree(self, split_node):
+        pthr_tree_graph = PantherTreeGraph()
+        pthr_tree_graph.graph = self.subgraph(
+            self.descendants(split_node, reflexive=True)
+        )
+        return pthr_tree_graph
 
     def nodes_between(self, ancestor_node, descendant_node):
         descendants_of_anc = self.descendants(ancestor_node)
