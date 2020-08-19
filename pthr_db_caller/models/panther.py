@@ -175,6 +175,34 @@ class GeneDatEntry(DatEntry):
         pthr_sequence = PthrSequence(row[0])
         return cls(pthr_sequence, *row[1:4])
 
+    def __str__(self):
+        return "\t".join([str(self.long_id), self.description, self.synonym, self.mod_id])
+
 
 class GeneDatFile(DatFile):
     ENTRY_TYPE = GeneDatEntry
+
+
+class NodeDatEntry(DatEntry):
+    def __init__(self, an_id: str, ptn: str, node_type: str, event_type: str, branch_length: float):
+        super().__init__(self, an_id, ptn, node_type, event_type, branch_length)
+        self.an_id = an_id
+        self.ptn = ptn
+        self.node_type = node_type
+        self.event_type = event_type
+        self.branch_length = branch_length
+
+    @classmethod
+    def parse_row(cls, row: List[str]):
+        return cls(*row[0:4], float(row[4]))
+
+    def __str__(self):
+        event_type = self.event_type
+        if event_type is None:
+            # Will be blank if node_type == LEAF
+            event_type = ""
+        return "\t".join([self.an_id, self.ptn, self.node_type, event_type, self.branch_length])
+
+
+class NodeDatFile(DatFile):
+    ENTRY_TYPE = NodeDatEntry

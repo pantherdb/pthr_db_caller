@@ -1,8 +1,9 @@
 import networkx
 from networkx import MultiDiGraph
-from typing import List
+from typing import List, Dict
 from Bio import Phylo
 from io import StringIO
+from pthr_db_caller.models.panther import NodeDatFile
 
 
 # Unfortunately, this only uses AN# node IDs instead of PTNs due to parsing from tree files.
@@ -47,8 +48,10 @@ def extract_clade_name(clade_comment):
 
 
 class PantherTreeGraph:
-    def __init__(self):
+    def __init__(self, tree_name: str = None):
         self.graph = MultiDiGraph()
+        self.name: str = tree_name
+        self.ptn_to_an: Dict = None
 
     # Recursive method to fill graph from Phylo clade, parsing out node accession and species name (if present)
     def add_children(self, parent_clade):
@@ -86,9 +89,22 @@ class PantherTreeGraph:
                 if an_id in self.graph:
                     self.graph.node[an_id]["long_id"] = long_id
 
+    def extract_node_properties(self, node_file: str):
+        node_dat_file = NodeDatFile.parse(node_file)
+        if self.ptn_to_an is None:
+            self.ptn_to_an = {}
+        for entry in node_dat_file:
+            family_name, an_id = entry.an_id.split(":", maxsplit=1)
+            if self.name == family_name and an_id in self.graph:
+                self.ptn_to_an[entry.ptn] = an_id
+                self.graph.node[an_id]["ptn"] = entry.ptn
+                self.graph.node[an_id]["node_type"] = entry.node_type
+                # event_type?
+                # branch_length?
+
     @staticmethod
-    def parse(tree_file: str):
-        pthr_tree_graph = PantherTreeGraph()
+    def parse(tree_file: str, tree_name: str = None, node_file: str = None):
+        pthr_tree_graph = PantherTreeGraph(tree_name)
 
         # Parse Newick line
         phylo = PantherTreePhylo(tree_file)
@@ -96,6 +112,10 @@ class PantherTreeGraph:
         pthr_tree_graph.add_children(phylo.tree.clade)
         # Fill in long IDs on leaf nodes
         pthr_tree_graph.extract_leaf_ids(tree_file)
+        # Fill in PTNs if node_file specified
+        if node_file:
+            pthr_tree_graph.extract_node_properties(node_file)
+
 
         return pthr_tree_graph
 
@@ -140,7 +160,7 @@ class PantherTreeGraph:
         return self.graph.subgraph(nodes).copy()
 
     def subtree(self, split_node):
-        pthr_tree_graph = PantherTreeGraph()
+        pthr_tree_graph = PantherTreeGraph(tree_name=self.name)
         pthr_tree_graph.graph = self.subgraph(
             self.descendants(split_node, reflexive=True)
         )
