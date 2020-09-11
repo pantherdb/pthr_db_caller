@@ -26,7 +26,10 @@ class PantherTreePhylo:
 def extract_clade_name(clade_comment):
     if clade_comment is None:
         clade_comment = ""
-    # Name-parsing should be more robust
+    # Ex: &&NHX:Ev=0>1:S=Dictyostelium:ID=AN13  # family internal
+    # Ex: &&NHX:Ev=1>0:ID=AN32  # family leaf
+    # Ex: &&NHX:S=Endopterygota  # species internal
+    # Ex: HUMAN  # species leaf
     new_comment = ""
     comment_bits = clade_comment.split(":")
     for b in comment_bits:
@@ -75,6 +78,8 @@ class PantherTreeGraph:
         species, id = extract_clade_name(clade.comment)
         if clade.name is None:
             clade.name = id
+        if clade.name == "":
+            clade.name = species
         if clade.name not in self.graph.nodes():
             self.graph.add_node(clade.name)
         if species:
