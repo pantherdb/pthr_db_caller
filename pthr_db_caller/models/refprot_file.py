@@ -32,15 +32,20 @@ class TaxonomyDetails:
     @staticmethod
     def parse_readme(readme_file):
         details = []
+        header_indices = {}
         with open(readme_file) as rf:
             for l in rf.readlines():
+                l = l.rstrip()
+                if l.startswith("Proteome_ID"):
+                    for idx, h in enumerate(l.split("\t")):
+                        header_indices[h] = idx
                 if l.startswith("UP"):
-                    row = l.split()
+                    row = l.split("\t")
                     detail = TaxonomyReadmeDetail(
-                        proteome_id=row[0],
-                        tax_id=row[1],
-                        oscode=row[2],
-                        species_name=row[6]
+                        proteome_id=row[header_indices["Proteome_ID"]],
+                        tax_id=row[header_indices["Tax_ID"]],
+                        oscode=row[header_indices["OSCODE"]],
+                        species_name=row[header_indices["Species Name"]]
                     )
                     details.append(detail)
 
