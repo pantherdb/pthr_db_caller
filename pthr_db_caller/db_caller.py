@@ -75,6 +75,7 @@ class DBCaller:
 
     def format_results(self, results, delimiter=";"):
         formatted_results = []
+        delimiter = delimiter.encode().decode('unicode_escape')  # Required for "\t"-delimiting
         for r in results:
             vals = []
             for val in r:
