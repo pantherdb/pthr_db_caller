@@ -14,7 +14,7 @@ setup(
         "biopython==1.73",
         "networkx==2.3",
         "matplotlib==3.1.1",
-        "PyYAML==3.12"
+        "PyYAML==5.1"
     ],
     scripts=[
         "bin/align_taxon_term_table_species.py"
