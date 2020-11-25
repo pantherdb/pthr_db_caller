@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import csv
 import argparse
 from pthr_db_caller.taxon_validate import TaxonTermValidator, get_all_species_from_tree, append_species_to_table
