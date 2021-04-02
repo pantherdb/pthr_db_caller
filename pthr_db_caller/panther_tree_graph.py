@@ -1,3 +1,4 @@
+import copy
 import networkx
 from networkx import MultiDiGraph
 from typing import List, Dict
@@ -55,6 +56,7 @@ class PantherTreeGraph:
         self.graph = MultiDiGraph()
         self.name: str = tree_name
         self.ptn_to_an: Dict = None
+        self.phylo: PantherTreePhylo = None
 
     # Recursive method to fill graph from Phylo clade, parsing out node accession and species name (if present)
     def add_children(self, parent_clade):
@@ -113,6 +115,7 @@ class PantherTreeGraph:
 
         # Parse Newick line
         phylo = PantherTreePhylo(tree_file)
+        pthr_tree_graph.phylo = phylo
         # Fill networkx graph from Phylo obj
         pthr_tree_graph.add_children(phylo.tree.clade)
         # Fill in long IDs on leaf nodes
@@ -121,8 +124,47 @@ class PantherTreeGraph:
         if node_file:
             pthr_tree_graph.extract_node_properties(node_file)
 
-
         return pthr_tree_graph
+
+    def write(self, outpath):
+        transformed_tree = copy.deepcopy(self.phylo.tree)
+        self.traverse(transformed_tree.clade)
+        Phylo.write(transformed_tree, outpath, 'newick')
+
+    def traverse(self, c, parent_species=None):
+        species, nid = extract_clade_name(c.comment)
+        if nid == "":
+            # Likely a leaf node
+            cn = self.node(c.name)
+            long_id = cn.get("long_id")
+            species = long_id.split("|")[0]
+            nid = long_id.split("|")[2].split("=")[1]
+            if species == "":
+                species = parent_species
+            c.name = self.newick_name_fmt(species, nid)
+        else:
+            c.name = "1"
+        # Transform event type values ("0>1" -> "S", "1>0" -> "D")
+        if c.comment:
+            # &&NHX:Ev=0>1:S=Amoebozoa:ID=AN7
+            new_comment_elements = ["&&NHX"]
+            if "Ev=0>1" in c.comment:
+                new_comment_elements.append("Ev=S")  # speciation
+            elif "Ev=1>0" in c.comment:
+                new_comment_elements.append("Ev=D")  # duplication
+            elif "Ev=0>0" in c.comment:
+                new_comment_elements.append("Ev=D")  # horizontal transfer, but pretend like it's duplication
+            c.comment = ":".join(new_comment_elements)
+        for child_clade in c.clades:
+            self.traverse(child_clade, parent_species=species)
+
+    @staticmethod
+    def newick_name_fmt(species, nid):
+        # Name formats
+        # LUCA_AN0 (internal speciation)
+        # SALTY_AN159 (internal duplication)
+        # ENTHI_C4M9L1 (leaf)
+        return "_".join([species, nid])
 
     def node(self, node):
         return self.graph.node.get(node)

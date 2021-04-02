@@ -14,9 +14,12 @@ setup(
         "biopython==1.73",
         "networkx==2.3",
         "matplotlib==3.1.1",
-        "PyYAML==3.12"
+        "PyYAML==3.12",
+        "ete3>=3.1.2"
     ],
     scripts=[
-        "bin/align_taxon_term_table_species.py"
+        "bin/align_taxon_term_table_species.py",
+        "bin/etree2orthoxml.py",
+        "bin/pthrtree2newick.py"
     ]
 )
