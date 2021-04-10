@@ -12,6 +12,12 @@ parser.add_argument("-s", "--slim_terms")
 parser.add_argument("-t", "--taxon_term_table")
 parser.add_argument("-p", "--panther_tree_nhx")
 
+subparsers = parser.add_subparsers(dest='subcommand', help='sub-command help')
+parser_n = subparsers.add_parser('lkp', help='Direct lookup of input taxon-term table')
+parser_n.add_argument('-n', '--taxon', type=str)
+parser_n.add_argument("-g", "--term", type=str)
+parser_n.set_defaults(function="taxon_term_lookup")
+
 THE_REST = []
 
 
@@ -57,7 +63,7 @@ def find_taxon_clade(taxon_name, root_clade):
 
 
 class TaxonTermValidator:
-    def __init__(self, taxon_term_table, panther_tree_nhx, slim_terms=None):
+    def __init__(self, taxon_term_table, panther_tree_nhx=None, slim_terms=None):
         self.term_constraint_lists = {}
         self.taxon_indexes = {}
         self.slim_terms = []
@@ -88,9 +94,10 @@ class TaxonTermValidator:
         logger.debug("term_constraint_lists: {}".format(len(self.term_constraint_lists)))
 
         # Parse species_tree
-        self.tree = next(Phylo.parse(panther_tree_nhx, "newick"))
-        self.tree.clade.name, self.tree.clade.id = extract_clade_name(self.tree.clade.comment)
-        name_children(self.tree.clade)
+        if panther_tree_nhx:
+            self.tree = next(Phylo.parse(panther_tree_nhx, "newick"))
+            self.tree.clade.name, self.tree.clade.id = extract_clade_name(self.tree.clade.comment)
+            name_children(self.tree.clade)
 
     # This is used to replace NCBITaxon:##### column labels with species codes used in PANTHER and PAINT
     def replace_taxon_header_labels(self, new_label_lookup: dict):
@@ -127,13 +134,16 @@ class TaxonTermValidator:
                 return True
 
         try:
-            result = self.term_constraint_lists[term][self.taxon_indexes[taxon]]
+            result = self.taxon_term_lookup(taxon, term)
         except IndexError:
             print(taxon)
-            result = self.term_constraint_lists[term][self.taxon_indexes[taxon]]
+            result = self.taxon_term_lookup(taxon, term)
         if result == '0':
             return False
         return True
+
+    def taxon_term_lookup(self, taxon, term):
+        return self.term_constraint_lists[term][self.taxon_indexes[taxon]]
 
 
 def append_species_to_table(validator : TaxonTermValidator, output_file):
@@ -171,6 +181,12 @@ def get_all_species_from_tree(validator : TaxonTermValidator):
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    validator = TaxonTermValidator(args.taxon_term_table, args.panther_tree_nhx, args.slim_terms)
-    get_all_species_from_tree(validator)
-    append_species_to_table(validator, args.output_file)
+    func = args.function
+    if func and func == "taxon_term_lookup":
+        validator = TaxonTermValidator(args.taxon_term_table)
+        result = validator.taxon_term_lookup(args.taxon, args.term)
+        print(result)
+    else:
+        validator = TaxonTermValidator(args.taxon_term_table, args.panther_tree_nhx, args.slim_terms)
+        get_all_species_from_tree(validator)
+        append_species_to_table(validator, args.output_file)
