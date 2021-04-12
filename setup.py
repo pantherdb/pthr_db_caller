@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pthr_db_caller",
-    version='0.0.13',
+    version='0.0.14',
     packages=find_packages(),
     author="dustine32",
     author_email="debert@usc.edu",
@@ -20,6 +20,7 @@ setup(
     scripts=[
         "bin/align_taxon_term_table_species.py",
         "bin/etree2orthoxml.py",
-        "bin/pthrtree2newick.py"
+        "bin/pthrtree2newick.py",
+        "bin/taxon_term_tbl_lkp.py"
     ]
 )

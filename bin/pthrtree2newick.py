@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
 
