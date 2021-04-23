@@ -3,6 +3,7 @@ import networkx
 from networkx import MultiDiGraph
 from typing import List, Dict
 from Bio import Phylo
+from Bio.Phylo import Newick
 from io import StringIO
 from pthr_db_caller.models.panther import NodeDatFile
 
@@ -21,7 +22,7 @@ class PantherTreePhylo:
             tree_phylo = next(Phylo.parse(tree_string, "newick"))
             # Leaves parse clean due to not having species name in 'S:'
 
-        self.tree = tree_phylo
+        self.tree: Newick.Tree = tree_phylo
 
 
 def extract_clade_name(clade_comment):
@@ -115,9 +116,7 @@ class PantherTreeGraph:
 
         # Parse Newick line
         phylo = PantherTreePhylo(tree_file)
-        pthr_tree_graph.phylo = phylo
-        # Fill networkx graph from Phylo obj
-        pthr_tree_graph.add_children(phylo.tree.clade)
+        pthr_tree_graph.init_from_phylo(phylo)
         # Fill in long IDs on leaf nodes
         pthr_tree_graph.extract_leaf_ids(tree_file)
         # Fill in PTNs if node_file specified
@@ -125,6 +124,11 @@ class PantherTreeGraph:
             pthr_tree_graph.extract_node_properties(node_file)
 
         return pthr_tree_graph
+
+    def init_from_phylo(self, phylo: PantherTreePhylo):
+        self.phylo: PantherTreePhylo = phylo
+        # Fill networkx graph from Phylo obj
+        self.add_children(phylo.tree.clade)
 
     def write(self, outpath):
         transformed_tree = copy.deepcopy(self.phylo.tree)
@@ -157,6 +161,21 @@ class PantherTreeGraph:
             c.comment = ":".join(new_comment_elements)
         for child_clade in c.clades:
             self.traverse(child_clade, parent_species=species)
+
+    def prune_species(self, taxon_list: List):
+        """
+        Process:
+        1. Find all terminal leaf nodes having taxon (OS code format) NOT in taxon_list. Delete these.
+        2. Starting from the terminal nodes, traverse up, deleting all parent nodes until reaching a node with >1 children.
+        3. Stop traversing that path and move on to traversing up the next terminal node
+        :param taxon_list: The List of OS codes ('5-letter' OSCODES. Ex: HUMAN, MOUSE, SCHPO) that will remain in tree
+        after pruning list non-members
+        """
+        for leaf in self.leaves():
+            long_id = self.node(leaf)["long_id"]
+            species = long_id.split("|")[0]
+            if species not in taxon_list:
+                self.prune_up(leaf)
 
     @staticmethod
     def newick_name_fmt(species, nid):
@@ -217,6 +236,25 @@ class PantherTreeGraph:
         descendants_of_anc = self.descendants(ancestor_node)
         ancestors_of_desc = self.ancestors(descendant_node)
         return list(set(descendants_of_anc) & set(ancestors_of_desc))
+
+    def prune_up(self, node):
+        """
+        remove_node(node) and, if node.parent has multiple children, prune_up(node.parent)
+        :param node:
+        :return:
+        """
+        parents = self.parents(node)
+        if len(parents) > 1:
+            print("WARNING: Tree node {} has multiple parents:".format(node), parents)
+        if len(self.children(node)) < 2:
+            self.prune_up(parents[0])
+            self.remove_node(node)
+
+    def remove_node(self, node):
+        # Here, we remove from both graph and phylo
+        self.graph.remove_node(node)
+        if self.phylo.tree.find_any(node):
+            self.phylo.tree.prune(node)
 
     def __len__(self):
         return len(self.graph)
