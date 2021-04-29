@@ -15,12 +15,15 @@ setup(
         "networkx==2.3",
         "matplotlib==3.1.1",
         "PyYAML==3.12",
-        "ete3>=3.1.2"
+        "ete3>=3.1.2",
+        "lxml>=4.6.3",
+        "dataclasses"
     ],
     scripts=[
         "bin/align_taxon_term_table_species.py",
         "bin/etree2orthoxml.py",
         "bin/pthrtree2newick.py",
-        "bin/taxon_term_tbl_lkp.py"
+        "bin/taxon_term_tbl_lkp.py",
+        "bin/format_xml_iba_to_gaf.py"
     ]
 )

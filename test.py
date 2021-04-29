@@ -1,5 +1,6 @@
 import unittest
 from pthr_db_caller.models.panther import RefProtPantherMapping
+from pthr_db_caller.models import paint
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
 
@@ -57,6 +58,16 @@ class TestPantherTreeGraph(unittest.TestCase):
                          msg="ID Q8YAT3 not found for node AN96")
         n = tree.node("AN98")
         self.assertEqual("Bacillus", n.get("species"), msg="Species Bacillus not found for node AN98")
+
+
+class TestXmlToGaf(unittest.TestCase):
+    def test_not_w_contributes_to(self):
+        xml_file = "resources/test/PTHR12548.xml"
+        annotated_node_collection = paint.PaintIbaXmlParser.parse(xml_file)
+        anode = annotated_node_collection.find_persistent_id("PTN002649017")
+        # Find annotation to GO:0000977
+        annot = anode.annotations.find_term("GO:0000977")[0]
+        self.assertEqual(annot.qualifiers, ["NOT", "contributes_to"])
 
 
 if __name__ == "__main__":
