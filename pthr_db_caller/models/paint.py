@@ -1,8 +1,9 @@
+import os
+import csv
 from typing import List
 from lxml import etree
 from dataclasses import dataclass
 from pthr_db_caller.models.panther import PthrSequence
-
 
 PAINT_PMID = "PMID:21873635"
 MOD_LIST = [
@@ -34,11 +35,16 @@ PREFIX_TRANSFORMATIONS = {
     "WormBase": "WB",
     "FlyBase": "FB"
 }
-DEFAULT_QUALIFIERS = {
+DEFAULT_RELATIONS = {
     "F": "enables",
     "P": "involved_in",
     "C": "is_active_in",
     "complex": "part_of"
+}
+ASPECT_LABEL_TO_SYMBOL = {
+    "biological_process": "P",
+    "molecular_function": "F",
+    "cellular_component": "C"
 }
 
 
@@ -180,6 +186,14 @@ class AnnotatedNodeCollection:
         self.annotated_nodes.append(annotated_node)
 
     """
+    Effectively "merges" two AnnotatedNodeCollection objects together
+    """
+
+    def merge_collection(self, collection):
+        for annotated_node in collection:
+            self.add(annotated_node)
+
+    """
     Finds the AnnotatedNode by persistent_id (PTN). There should only be one.
     """
     def find_persistent_id(self, persistent_id: str):
@@ -205,59 +219,110 @@ def go_appropriate_id(long_id: PthrSequence):
     return gene_id
 
 
-def gaf_line(annotation: Annotation, annotated_node: AnnotatedNode):
-    # GAF 2.2:
-    # PomBase	SPAC959.04c	omh6	involved_in	GO:0006493	PMID:21873635	IBA	PANTHER:PTN000779407|SGD:S000002891|CGD:CAL0000188662|SGD:S000005625|SGD:S000000409
-    # P	O-glycoside alpha-1,2-mannosyltransferase homolog 6	UniProtKB:Q9P4X2|PTN001258804	protein	taxon:284812	20170228	GO_Central
-    # UniProtKB   F7HDM2  TFDP3   NOT|contributes_to      GO:0000977      PMID:21873635   IBA
-    # PANTHER:PTN000284512|PANTHER:PTN000284480       F       Transcription factor    UniProtKB:F7HDM2|PTN000284516   protein taxon:9544      20200914        GO_Central
-    s = go_appropriate_id(annotated_node.gene_long_id)  # MGI=MGI=12345 -> MGI:MGI:12345
-    subject_prefix, subject_id = s.split(":", maxsplit=1)  # MGI:MGI:12345 -> MGI, MGI:12345
+class PaintIbaWriter:
+    def __init__(self, go_aspect: str, complex_termlist: str):
+        self.go_aspects = self.parse_go_aspect(go_aspect)
+        self.complex_terms = self.parse_complex_termlist(complex_termlist)
 
-    # Use uniprot_id is no gene_symbol  # TODO: Fix PomBase symbols
-    gene_symbol = annotated_node.gene_symbol
-    if gene_symbol is None:
-        gene_symbol = annotated_node.gene_long_id.uniprot_id
+    def get_aspect(self, term):
+        try:
+            aspect = self.go_aspects[term]
+        except KeyError as ex:
+            print("ERROR: Missing GO aspect for term '{}'".format(term))
+            raise ex
+        return aspect
 
-    qualifiers = "|".join(annotation.qualifiers)
+    def get_qualifiers(self, annotation: Annotation):
+        # Start with assuming format is GAF 2.2
+        term = annotation.term
+        qualifiers = annotation.qualifiers
+        aspect = self.get_aspect(term)
+        if aspect == "C" and term in self.complex_terms:
+            default_relation = DEFAULT_RELATIONS["complex"]
+        else:
+            default_relation = DEFAULT_RELATIONS[aspect]
+        if len(qualifiers) == 0 or qualifiers == ["NOT"]:
+            qualifiers.append(default_relation)
+        return qualifiers
 
-    first_with = annotation.evidence_list[0]
-    with_ptn = first_with.persistent_id  # PTN of IBD or IKR
-    with_id_list = first_with.with_ids.with_ids
-    if isinstance(first_with.with_ids, ExperimentalWith):
-        with_ids = [go_appropriate_id(long_id) for long_id in with_id_list]
-    else:
-        # IKR with - PTN in list will be for IBD
-        with_ids = ["PANTHER:{}".format(ptn) for ptn in with_id_list]
+    @staticmethod
+    def parse_go_aspect(go_aspect):
+        go_aspects = {}
+        with open(go_aspect) as af:
+            reader = csv.reader(af, delimiter="\t")
+            for r in reader:
+                term = r[0]
+                aspect = r[1]
+                go_aspects[term] = ASPECT_LABEL_TO_SYMBOL[aspect]
+        return go_aspects
 
-    aspect = "P"  # TODO: calculate aspect
+    @staticmethod
+    def parse_complex_termlist(complex_termlist):
+        term_list = set()
+        with open(complex_termlist) as ctl_f:
+            for term in ctl_f.readlines():
+                term_list.add(term.rstrip())
+        return term_list
 
-    return "\t".join([
-        subject_prefix,
-        subject_id,
-        gene_symbol,
-        qualifiers,
-        annotation.term,
-        PAINT_PMID,
-        annotation.evidence_code,
-        "|".join(["PANTHER:{}".format(with_ptn)] + with_ids),
-        aspect,
-        annotated_node.gene_name,
-        "{}|{}".format(annotated_node.gene_long_id.uniprot.replace("=", ":"), annotated_node.persistent_id),
-        "protein",
-        "taxon:{}".format(annotated_node.taxon_id),
-        first_with.creation_date,
-        "GO_Central",
-        "",  # Annotation Extension placeholder
-        "",  # Gene Product Form ID placeholder
-    ])
+    def gaf_line(self, annotation: Annotation, annotated_node: AnnotatedNode):
+        # GAF 2.2:
+        # PomBase	SPAC959.04c	omh6	involved_in	GO:0006493	PMID:21873635	IBA	PANTHER:PTN000779407|SGD:S000002891|CGD:CAL0000188662|SGD:S000005625|SGD:S000000409
+        # P	O-glycoside alpha-1,2-mannosyltransferase homolog 6	UniProtKB:Q9P4X2|PTN001258804	protein	taxon:284812	20170228	GO_Central
+        # UniProtKB   F7HDM2  TFDP3   NOT|contributes_to      GO:0000977      PMID:21873635   IBA
+        # PANTHER:PTN000284512|PANTHER:PTN000284480       F       Transcription factor    UniProtKB:F7HDM2|PTN000284516   protein taxon:9544      20200914        GO_Central
+        s = go_appropriate_id(annotated_node.gene_long_id)  # MGI=MGI=12345 -> MGI:MGI:12345
+        subject_prefix, subject_id = s.split(":", maxsplit=1)  # MGI:MGI:12345 -> MGI, MGI:12345
+
+        # Use uniprot_id is no gene_symbol  # TODO: Fix PomBase symbols
+        gene_symbol = annotated_node.gene_symbol
+        if gene_symbol is None:
+            gene_symbol = annotated_node.gene_long_id.uniprot_id
+
+        qualifiers = self.get_qualifiers(annotation)
+        qualifiers_str = "|".join(qualifiers)
+
+        first_with = annotation.evidence_list[0]
+        with_ptn = first_with.persistent_id  # PTN of IBD or IKR
+        with_id_list = first_with.with_ids.with_ids
+        if isinstance(first_with.with_ids, ExperimentalWith):
+            with_ids = [go_appropriate_id(long_id) for long_id in with_id_list]
+        else:
+            # IKR with - PTN in list will be for IBD
+            with_ids = ["PANTHER:{}".format(ptn) for ptn in with_id_list]
+
+        aspect = self.get_aspect(annotation.term)
+
+        return "\t".join([
+            subject_prefix,
+            subject_id,
+            gene_symbol,
+            qualifiers_str,
+            annotation.term,
+            PAINT_PMID,
+            annotation.evidence_code,
+            "|".join(["PANTHER:{}".format(with_ptn)] + with_ids),
+            aspect,
+            annotated_node.gene_name,
+            "{}|{}".format(annotated_node.gene_long_id.uniprot.replace("=", ":"), annotated_node.persistent_id),
+            "protein",
+            "taxon:{}".format(annotated_node.taxon_id),
+            first_with.creation_date,
+            "GO_Central",
+            "",  # Annotation Extension placeholder
+            "",  # Gene Product Form ID placeholder
+        ])
+
+    def write(self, annotated_node_collection: AnnotatedNodeCollection):
+        for anode in annotated_node_collection:
+            for annot in anode.annotations:
+                if annot.evidence_code == "IBA":
+                    print(self.gaf_line(annot, anode))
 
 
 class PaintIbaXmlParser:
     PARSER = etree.XMLParser(recover=True)
 
-    @staticmethod
-    def extract_annotations(node: etree.Element, annotations: AnnotationCollection = None, is_leaf=None):
+    def extract_annotations(self, node: etree.Element, annotations: AnnotationCollection = None, is_leaf=None):
         if annotations is None:
             annotations = AnnotationCollection.initial()
         if not is_leaf:
@@ -269,18 +334,36 @@ class PaintIbaXmlParser:
             elif c.tag == "annotation" and is_leaf:
                 annotations.add(Annotation.from_element(c))
             else:
-                PaintIbaXmlParser.extract_annotations(c, annotations, is_leaf=is_leaf)
+                self.extract_annotations(c, annotations, is_leaf=is_leaf)
         return annotations
 
-    @staticmethod
-    def parse(xml_path: str):
+    def parse_xml(self, xml_path: str):
+        # This is where we have access to complex_terms and aspects
         annotated_node_collection = AnnotatedNodeCollection.initial()
 
         tree = etree.parse(xml_path, PaintIbaXmlParser.PARSER)
         node_list = tree.find("node_list")
         for node in node_list.getchildren():
             anode = AnnotatedNode.from_element(node)
-            anode.annotations = PaintIbaXmlParser.extract_annotations(node)
+            anode.annotations = self.extract_annotations(node)
             annotated_node_collection.add(anode)
+
+        return annotated_node_collection
+
+    @staticmethod
+    def parse(xml_path: str):
+        parser = PaintIbaXmlParser()
+        annotated_node_collection = AnnotatedNodeCollection.initial()
+
+        # Sort out if xml_path is file or directory
+        # TODO: Ensure these are .xml?
+        if os.path.isdir(xml_path):
+            xml_dir = xml_path
+            xml_files = [os.path.join(xml_dir, xf) for xf in os.listdir(xml_path)]
+        else:
+            xml_files = [xml_path]
+
+        for xf in xml_files:
+            annotated_node_collection.merge_collection(parser.parse_xml(xf))
 
         return annotated_node_collection

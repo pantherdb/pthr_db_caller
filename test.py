@@ -1,4 +1,5 @@
 import unittest
+from typing import List
 from pthr_db_caller.models.panther import RefProtPantherMapping
 from pthr_db_caller.models import paint
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
@@ -61,6 +62,10 @@ class TestPantherTreeGraph(unittest.TestCase):
 
 
 class TestXmlToGaf(unittest.TestCase):
+    ASPECT_FILE = "resources/test/go_aspects.tsv"
+    COMPLEX_FILE = "resources/test/complex_terms.tsv"
+    WRITER = paint.PaintIbaWriter(go_aspect=ASPECT_FILE, complex_termlist=COMPLEX_FILE)
+
     def test_not_w_contributes_to(self):
         xml_file = "resources/test/PTHR12548.xml"
         annotated_node_collection = paint.PaintIbaXmlParser.parse(xml_file)
@@ -68,6 +73,20 @@ class TestXmlToGaf(unittest.TestCase):
         # Find annotation to GO:0000977
         annot = anode.annotations.find_term("GO:0000977")[0]
         self.assertEqual(annot.qualifiers, ["NOT", "contributes_to"])
+
+    def run_term_and_qualifiers_test(self, term: str, qualifiers: List, expected: List):
+        annot = paint.Annotation(evidence_code="IBA", term=term, qualifiers=qualifiers, evidence_list=[])
+        self.assertEqual(self.WRITER.get_qualifiers(annot), expected)
+
+    def test_default_output_relations(self):
+        # regulation of transcription by RNA polymerase II (P)
+        self.run_term_and_qualifiers_test(term="GO:0006357", qualifiers=["NOT"], expected=["NOT", "involved_in"])
+        # kinase activity (F)
+        self.run_term_and_qualifiers_test(term="GO:0016301", qualifiers=[], expected=["enables"])
+        self.run_term_and_qualifiers_test(term="GO:0016301", qualifiers=["contributes_to"], expected=["contributes_to"])
+        # GINS complex (complex)
+        self.run_term_and_qualifiers_test(term="GO:0000811", qualifiers=[], expected=["part_of"])
+        self.run_term_and_qualifiers_test(term="GO:0000811", qualifiers=["NOT", "colocalizes_with"], expected=["NOT", "colocalizes_with"])
 
 
 if __name__ == "__main__":
