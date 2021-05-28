@@ -1,4 +1,6 @@
 import csv
+import datetime
+
 from dataclasses import dataclass
 from typing import Optional
 from pthr_db_caller.models import paint
@@ -61,11 +63,40 @@ class PaintIbaFile:
     taxon_id: Optional[str] = None
     oscode: Optional[str] = None
     annotated_nodes: Optional[paint.AnnotatedNodeCollection] = None
+    writer: Optional[paint.PaintIbaWriter] = None
+    panther_version: Optional[str] = None
+    go_release_date: Optional[str] = None
 
     def add_node(self, node: paint.AnnotatedNode):
         if self.annotated_nodes is None:
             self.annotated_nodes = paint.AnnotatedNodeCollection.initial()
         self.annotated_nodes.add(node)
+
+    def header_lines(self):
+        format_versions = {
+            'GAF': 2.2,
+            'GPAD': 2.0,
+        }
+        # PANTHER and GO required for header
+        if self.panther_version and self.go_release_date:
+            lines = [
+                "!{}-version: {}".format(self.writer.file_format.lower(), format_versions[self.writer.file_format]),
+                "!generated-by: PANTHER",
+                "!date-generated: {}".format(datetime.date.today()),
+                "!PANTHER version: v.{}".format(self.panther_version),
+                "!GO version: {}".format(self.go_release_date)
+            ]
+            return lines
+        else:
+            return []
+
+    # TODO: This naming is jacked. Why is the 'file' writing and not the 'writer'?
+    def write(self, outfile: str):
+        header_lines = self.header_lines()
+        annotation_lines = self.writer.annotation_lines(self.annotated_nodes)
+        with open(outfile, "w") as out_f:
+            for l in header_lines + annotation_lines:
+                out_f.write("{}\n".format(l))
 
 
 def parse_iba_metadata_file(metadata_file: str):

@@ -3,7 +3,7 @@ import csv
 from typing import List
 from lxml import etree
 from dataclasses import dataclass
-from pthr_db_caller.models.panther import PthrSequence
+from pthr_db_caller.models import panther
 
 PAINT_PMID = "PMID:21873635"
 MOD_LIST = [
@@ -55,7 +55,7 @@ class WithBase:
 
 @dataclass
 class ExperimentalWith(WithBase):
-    with_ids: List[PthrSequence]
+    with_ids: List[panther.PthrSequence]
 
 
 @dataclass
@@ -71,7 +71,7 @@ def make_with(evidence_code: str, with_element: etree.Element):
         with_evidence_code = with_element.find("evidence_code").text
         return AncestralWith([persistent_id], with_evidence_code)
     else:
-        with_ids = [PthrSequence(wi.text) for wi in with_element.getchildren()]
+        with_ids = [panther.PthrSequence(wi.text) for wi in with_element.getchildren()]
         return ExperimentalWith(with_ids)
 
 
@@ -155,7 +155,7 @@ class AnnotationCollection:
 @dataclass()
 class AnnotatedNode:
     persistent_id: str
-    gene_long_id: PthrSequence
+    gene_long_id: panther.PthrSequence
     gene_name: str
     gene_symbol: str
     taxon_id: str
@@ -165,7 +165,7 @@ class AnnotatedNode:
     def from_element(AnnotatedNode, element: etree.Element):
         # Node will have fields like: persistent_id, gene_long_id, gene_name, gene_symbol, taxon_id
         persistent_id = element.find("persistent_id").text
-        gene_long_id = PthrSequence(element.find("gene_long_id").text)
+        gene_long_id = panther.PthrSequence(element.find("gene_long_id").text)
         gene_name = element.find("gene_name").text
         gene_symbol = element.find("gene_symbol").text
         taxon_id = element.find("taxon_id").text
@@ -207,7 +207,7 @@ class AnnotatedNodeCollection:
         return len(self.annotated_nodes)
 
 
-def go_appropriate_id(long_id: PthrSequence):
+def go_appropriate_id(long_id: panther.PthrSequence):
     # Extract from long ID, and perhaps external lookup tables, the ID expected by GO MODs and other consumers.
     #  Could be a MOD gene ID or UniProtKB depending on to-be-coded factors.
     gene_id = long_id.gene_id.replace("=", ":")
@@ -315,7 +315,7 @@ class PaintIbaWriter:
             "",  # Gene Product Form ID placeholder
         ])
 
-    def get_lines(self, annotated_node_collection: AnnotatedNodeCollection):
+    def annotation_lines(self, annotated_node_collection: AnnotatedNodeCollection):
         lines = []
         for anode in annotated_node_collection:
             for annot in anode.annotations:
@@ -326,16 +326,9 @@ class PaintIbaWriter:
         return lines
 
     def print(self, annotated_node_collection: AnnotatedNodeCollection):
-        lines = self.get_lines(annotated_node_collection)
+        lines = self.annotation_lines(annotated_node_collection)
         for l in lines:
             print(l)
-
-    def write(self, annotated_node_collection: AnnotatedNodeCollection, outfile: str):
-        lines = self.get_lines(annotated_node_collection)
-        with open(outfile, "w") as out_f:
-            # Header?
-            for l in lines:
-                out_f.write("{}\n".format(l))
 
 
 class PaintIbaXmlParser:

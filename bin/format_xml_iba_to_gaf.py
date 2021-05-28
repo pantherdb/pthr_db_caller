@@ -15,6 +15,8 @@ parser.add_argument('-s', '--split_by_species', help="Filepath to 'filename,taxo
 parser.add_argument('-d', '--out_directory', help="Destination directory for split files. Only used if"
                                                   "--split_by_species is specified.")
 parser.add_argument('-a', '--file_format', help="GO annotation format to output. Default is 'GAF' (version 2.2)")
+parser.add_argument('-p', '--panther_version', help="PANTHER library version. E.g. 15.0, 16.0")
+parser.add_argument('-r', '--go_release_date', help="GO release date in YYYY-MM-DD format")
 
 
 if __name__ == "__main__":
@@ -36,6 +38,9 @@ if __name__ == "__main__":
         taxon_to_file = {}
         for pif in iba_files:
             taxon_to_file[pif.taxon_id] = pif
+            pif.writer = writer
+            pif.panther_version = args.panther_version
+            pif.go_release_date = args.go_release_date
         for node in anodes:
             iba_file = taxon_to_file.get(node.taxon_id)
             if iba_file is None:
@@ -48,6 +53,6 @@ if __name__ == "__main__":
                 full_filepath = os.path.join(args.out_directory, iba_file.basename)
                 full_filepath = "{}.{}".format(full_filepath, file_format.lower())
                 print(iba_file.basename, len(iba_file.annotated_nodes))
-                writer.write(iba_file.annotated_nodes, full_filepath)
+                iba_file.write(full_filepath)
     else:
         writer.print(anodes)
