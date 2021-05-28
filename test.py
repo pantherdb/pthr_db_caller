@@ -1,7 +1,7 @@
 import unittest
 from typing import List
 from pthr_db_caller.models.panther import RefProtPantherMapping
-from pthr_db_caller.models import paint
+from pthr_db_caller.models import paint, metadata
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
 
@@ -88,6 +88,9 @@ class TestXmlToGaf(unittest.TestCase):
         self.run_term_and_qualifiers_test(term="GO:0000811", qualifiers=[], expected=["part_of"])
         self.run_term_and_qualifiers_test(term="GO:0000811", qualifiers=["NOT", "colocalizes_with"], expected=["NOT", "colocalizes_with"])
 
+    def test_iba_metadata_file_parse(self):
+        iba_files = metadata.parse_iba_metadata_file("resources/test/paint_iba_files.tsv")
+        self.assertEqual(len(iba_files), 13)
 
 if __name__ == "__main__":
     unittest.main()

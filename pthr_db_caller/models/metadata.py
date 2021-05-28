@@ -1,4 +1,7 @@
 import csv
+from dataclasses import dataclass
+from typing import Optional
+from pthr_db_caller.models import paint
 
 
 class TaxonomyRecord:
@@ -50,3 +53,30 @@ class TaxonomyFile:
 
     def __iter__(self):
         return iter(self.records)
+
+
+@dataclass
+class PaintIbaFile:
+    basename: str
+    taxon_id: Optional[str] = None
+    oscode: Optional[str] = None
+    annotated_nodes: Optional[paint.AnnotatedNodeCollection] = None
+
+    def add_node(self, node: paint.AnnotatedNode):
+        if self.annotated_nodes is None:
+            self.annotated_nodes = paint.AnnotatedNodeCollection.initial()
+        self.annotated_nodes.add(node)
+
+
+def parse_iba_metadata_file(metadata_file: str):
+    iba_files = []
+    with open(metadata_file) as mf:
+        reader = csv.reader(mf, delimiter="\t")
+        for r in reader:
+            iba_file = PaintIbaFile(
+                basename=r[0],
+                taxon_id=r[1],
+                oscode=r[2]
+            )
+            iba_files.append(iba_file)
+    return iba_files

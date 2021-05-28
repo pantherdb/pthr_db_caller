@@ -188,7 +188,6 @@ class AnnotatedNodeCollection:
     """
     Effectively "merges" two AnnotatedNodeCollection objects together
     """
-
     def merge_collection(self, collection):
         for annotated_node in collection:
             self.add(annotated_node)
@@ -203,6 +202,9 @@ class AnnotatedNodeCollection:
 
     def __iter__(self):
         return iter(self.annotated_nodes)
+
+    def __len__(self):
+        return len(self.annotated_nodes)
 
 
 def go_appropriate_id(long_id: PthrSequence):
@@ -220,9 +222,10 @@ def go_appropriate_id(long_id: PthrSequence):
 
 
 class PaintIbaWriter:
-    def __init__(self, go_aspect: str, complex_termlist: str):
+    def __init__(self, go_aspect: str, complex_termlist: str, file_format: str = "GAF"):
         self.go_aspects = self.parse_go_aspect(go_aspect)
         self.complex_terms = self.parse_complex_termlist(complex_termlist)
+        self.file_format = file_format
 
     def get_aspect(self, term):
         try:
@@ -312,11 +315,27 @@ class PaintIbaWriter:
             "",  # Gene Product Form ID placeholder
         ])
 
-    def write(self, annotated_node_collection: AnnotatedNodeCollection):
+    def get_lines(self, annotated_node_collection: AnnotatedNodeCollection):
+        lines = []
         for anode in annotated_node_collection:
             for annot in anode.annotations:
                 if annot.evidence_code == "IBA":
-                    print(self.gaf_line(annot, anode))
+                    if self.file_format.upper() == "GAF":
+                        line = self.gaf_line(annot, anode)
+                        lines.append(line)
+        return lines
+
+    def print(self, annotated_node_collection: AnnotatedNodeCollection):
+        lines = self.get_lines(annotated_node_collection)
+        for l in lines:
+            print(l)
+
+    def write(self, annotated_node_collection: AnnotatedNodeCollection, outfile: str):
+        lines = self.get_lines(annotated_node_collection)
+        with open(outfile, "w") as out_f:
+            # Header?
+            for l in lines:
+                out_f.write("{}\n".format(l))
 
 
 class PaintIbaXmlParser:
