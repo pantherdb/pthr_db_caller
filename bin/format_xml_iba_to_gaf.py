@@ -17,6 +17,7 @@ parser.add_argument('-d', '--out_directory', help="Destination directory for spl
 parser.add_argument('-a', '--file_format', help="GO annotation format to output. Default is 'GAF' (version 2.2)")
 parser.add_argument('-p', '--panther_version', help="PANTHER library version. E.g. 15.0, 16.0")
 parser.add_argument('-r', '--go_release_date', help="GO release date in YYYY-MM-DD format")
+parser.add_argument('-u', '--obsolete_uniprots', help="Filepath to list of PANTHER UniProt IDs not in UniProt GPI")
 
 
 if __name__ == "__main__":
@@ -26,7 +27,10 @@ if __name__ == "__main__":
         file_format = args.file_format.upper()
     else:
         file_format = "GAF"
-    writer = paint.PaintIbaWriter(go_aspect=args.go_aspect, complex_termlist=args.complex_termlist, file_format=file_format)
+    writer = paint.PaintIbaWriter(go_aspect=args.go_aspect,
+                                  complex_termlist=args.complex_termlist,
+                                  file_format=file_format,
+                                  obsolete_uniprots=args.obsolete_uniprots)
 
     anodes = paint.PaintIbaXmlParser.parse(args.file_xml)
 

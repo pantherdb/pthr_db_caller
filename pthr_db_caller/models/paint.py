@@ -222,10 +222,13 @@ def go_appropriate_id(long_id: panther.PthrSequence):
 
 
 class PaintIbaWriter:
-    def __init__(self, go_aspect: str, complex_termlist: str, file_format: str = "GAF"):
+    def __init__(self, go_aspect: str, complex_termlist: str, file_format: str = "GAF", obsolete_uniprots: str = None):
         self.go_aspects = self.parse_go_aspect(go_aspect)
-        self.complex_terms = self.parse_complex_termlist(complex_termlist)
+        self.complex_terms = self.parse_list_file(complex_termlist)
         self.file_format = file_format
+        self.obsolete_uniprot_ids = None
+        if obsolete_uniprots:
+            self.obsolete_uniprot_ids = self.parse_list_file(obsolete_uniprots)
 
     def get_aspect(self, term):
         try:
@@ -260,12 +263,13 @@ class PaintIbaWriter:
         return go_aspects
 
     @staticmethod
-    def parse_complex_termlist(complex_termlist):
-        term_list = set()
-        with open(complex_termlist) as ctl_f:
-            for term in ctl_f.readlines():
-                term_list.add(term.rstrip())
-        return term_list
+    def parse_list_file(list_file):
+        # Generic for single-column, non-redundant lists
+        list_of_things = set()
+        with open(list_file) as lf:
+            for l in lf.readlines():
+                list_of_things.add(l.rstrip())
+        return list_of_things
 
     def gaf_line(self, annotation: Annotation, annotated_node: AnnotatedNode):
         # GAF 2.2:
@@ -318,6 +322,10 @@ class PaintIbaWriter:
     def annotation_lines(self, annotated_node_collection: AnnotatedNodeCollection):
         lines = []
         for anode in annotated_node_collection:
+            uniprot_id = anode.gene_long_id.uniprot_id
+            if self.obsolete_uniprot_ids and uniprot_id in self.obsolete_uniprot_ids:
+                print("\t".join(["Skipping - obsolete ID missing from latest uniprot_protein.gpi", "taxon:{}".format(anode.taxon_id), uniprot_id]))
+                continue
             for annot in anode.annotations:
                 if annot.evidence_code == "IBA":
                     if self.file_format.upper() == "GAF":
