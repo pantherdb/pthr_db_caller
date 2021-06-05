@@ -2,7 +2,7 @@ import csv
 import datetime
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 from pthr_db_caller.models import paint
 
 
@@ -58,19 +58,10 @@ class TaxonomyFile:
 
 
 @dataclass
-class PaintIbaFile:
-    basename: str
-    taxon_id: Optional[str] = None
-    oscode: Optional[str] = None
-    annotated_nodes: Optional[paint.AnnotatedNodeCollection] = None
-    writer: Optional[paint.PaintIbaWriter] = None
-    panther_version: Optional[str] = None
-    go_release_date: Optional[str] = None
-
-    def add_node(self, node: paint.AnnotatedNode):
-        if self.annotated_nodes is None:
-            self.annotated_nodes = paint.AnnotatedNodeCollection.initial()
-        self.annotated_nodes.add(node)
+class PaintFile:
+    writer: paint.PaintIbaWriter
+    panther_version: str
+    go_release_date: str
 
     def header_lines(self):
         format_versions = {
@@ -90,6 +81,19 @@ class PaintIbaFile:
         else:
             return []
 
+
+@dataclass
+class PaintIbaFile(PaintFile):
+    basename: str
+    taxon_id: Optional[str] = None
+    oscode: Optional[str] = None
+    annotated_nodes: Optional[paint.AnnotatedNodeCollection] = None
+
+    def add_node(self, node: paint.AnnotatedNode):
+        if self.annotated_nodes is None:
+            self.annotated_nodes = paint.AnnotatedNodeCollection.initial()
+        self.annotated_nodes.add(node)
+
     # TODO: This naming is jacked. Why is the 'file' writing and not the 'writer'?
     def write(self, outfile: str):
         header_lines = self.header_lines()
@@ -99,15 +103,27 @@ class PaintIbaFile:
                 out_f.write("{}\n".format(l))
 
 
+@dataclass
+class PaintIbdFile(PaintFile):
+    ibd_nodes: List[paint.Ibd]
+
+    def write(self, outfile: str):
+        header_lines = self.header_lines()
+        ibd_lines = self.writer.ibd_lines(self.ibd_nodes)
+        with open(outfile, "w+") as out_f:
+            for l in header_lines + ibd_lines:
+                out_f.write("{}\n".format(l))
+
+
 def parse_iba_metadata_file(metadata_file: str):
     iba_files = []
     with open(metadata_file) as mf:
         reader = csv.reader(mf, delimiter="\t")
         for r in reader:
-            iba_file = PaintIbaFile(
-                basename=r[0],
-                taxon_id=r[1],
-                oscode=r[2]
-            )
+            iba_file = {
+                "basename": r[0],
+                "taxon_id": r[1],
+                "oscode": r[2]
+            }
             iba_files.append(iba_file)
     return iba_files

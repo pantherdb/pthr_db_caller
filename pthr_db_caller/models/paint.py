@@ -48,20 +48,43 @@ ASPECT_LABEL_TO_SYMBOL = {
 }
 
 
+def go_appropriate_id(long_id: panther.PthrSequence):
+    # Extract from long ID, and perhaps external lookup tables, the ID expected by GO MODs and other consumers.
+    #  Could be a MOD gene ID or UniProtKB depending on to-be-coded factors.
+    gene_id = long_id.gene_id.replace("=", ":")
+    gene_id_prefix, gene_id_suffix = gene_id.split(":", maxsplit=1)
+    for prefix in DEFAULT_UNIPROT_ID_OUTPUT_FOR_PREFIXES:
+        if gene_id_prefix.startswith(prefix):
+            return long_id.uniprot.replace("=", ":")
+    for prefix, new_prefix in PREFIX_TRANSFORMATIONS.items():
+        if gene_id_prefix.startswith(prefix):
+            gene_id = ":".join([new_prefix, gene_id_suffix])
+    return gene_id
+
+
 @dataclass
 class WithBase:
     with_ids: List
+
+    def go_appropriate_ids(self):
+        return []
 
 
 @dataclass
 class ExperimentalWith(WithBase):
     with_ids: List[panther.PthrSequence]
 
+    def go_appropriate_ids(self):
+        return [go_appropriate_id(wid) for wid in self.with_ids]
+
 
 @dataclass
 class AncestralWith(WithBase):
     with_ids: List[str]  # A single PTN
     evidence_code: str
+
+    def go_appropriate_ids(self):
+        return ["PANTHER:{}".format(self.with_ids[0])]
 
 
 def make_with(evidence_code: str, with_element: etree.Element):
@@ -173,6 +196,44 @@ class AnnotatedNode:
 
         return AnnotatedNode(persistent_id, gene_long_id, gene_name, gene_symbol, taxon_id, annotations)
 
+# ibd_column_vals = [
+#                         ibd_ptn,
+#                         # "|".join(ibd_quals),
+#                         sorted(ibd_quals),
+#                         ibd_term,
+#                         # "PMID:21873635",
+#                         ibd_ev_code,
+#                         # "|".join(ev.with_ids.go_appropriate_ids()),
+#                         sorted(ev.with_ids),
+#                         "taxon:",
+#                         ev.creation_date
+#                     ]
+#
+"""
+Currently a combination of node and annotation 
+"""
+@dataclass
+class Ibd:
+    persistent_id: str
+    qualifiers: List[str]
+    term: str
+    evidence_code: str
+    evidence_with_ids: List[str]
+    taxon_id: str
+    creation_date: str
+
+    @classmethod
+    def from_list(Ibd, ibd_data: List):
+        return Ibd(
+            persistent_id=ibd_data[0],
+            qualifiers=ibd_data[1],
+            term=ibd_data[2],
+            evidence_code=ibd_data[3],
+            evidence_with_ids=ibd_data[4],
+            taxon_id=ibd_data[5],
+            creation_date=ibd_data[6]
+        )
+
 
 @dataclass
 class AnnotatedNodeCollection:
@@ -206,19 +267,33 @@ class AnnotatedNodeCollection:
     def __len__(self):
         return len(self.annotated_nodes)
 
-
-def go_appropriate_id(long_id: panther.PthrSequence):
-    # Extract from long ID, and perhaps external lookup tables, the ID expected by GO MODs and other consumers.
-    #  Could be a MOD gene ID or UniProtKB depending on to-be-coded factors.
-    gene_id = long_id.gene_id.replace("=", ":")
-    gene_id_prefix, gene_id_suffix = gene_id.split(":", maxsplit=1)
-    for prefix in DEFAULT_UNIPROT_ID_OUTPUT_FOR_PREFIXES:
-        if gene_id_prefix.startswith(prefix):
-            return long_id.uniprot.replace("=", ":")
-    for prefix, new_prefix in PREFIX_TRANSFORMATIONS.items():
-        if gene_id_prefix.startswith(prefix):
-            gene_id = ":".join([new_prefix, gene_id_suffix])
-    return gene_id
+    """
+    Extracts IBD data from existing annotated_nodes
+    """
+    def ibd_nodes(self):
+        # First, just collect lists of the data, ensuring they're unique
+        ibd_data = []
+        # Then, create Ibd objects that can be used by the IbaWriter (to access aspect, etc.)
+        for anode in self.annotated_nodes:
+            for a in anode.annotations:
+                ibd_quals = a.qualifiers
+                ibd_term = a.term
+                for ev in a.evidence_list:
+                    ibd_ptn = ev.persistent_id
+                    ibd_ev_code = ev.evidence_code
+                    ibd_column_vals = [
+                        ibd_ptn,
+                        sorted(ibd_quals),
+                        ibd_term,
+                        ibd_ev_code,
+                        sorted(ev.with_ids.go_appropriate_ids()),
+                        "taxon:",
+                        ev.creation_date
+                    ]
+                    if ibd_column_vals not in ibd_data:
+                        ibd_data.append(ibd_column_vals)
+        ibd_objs = [Ibd.from_list(n) for n in ibd_data]
+        return ibd_objs
 
 
 class PaintIbaWriter:
@@ -238,15 +313,15 @@ class PaintIbaWriter:
             raise ex
         return aspect
 
-    def get_qualifiers(self, annotation: Annotation):
+    def get_qualifiers(self, qualifiers: List[str], term: str):
         # Start with assuming format is GAF 2.2
-        term = annotation.term
-        qualifiers = annotation.qualifiers
         aspect = self.get_aspect(term)
+        # Determine default relation in case we need it
         if aspect == "C" and term in self.complex_terms:
             default_relation = DEFAULT_RELATIONS["complex"]
         else:
             default_relation = DEFAULT_RELATIONS[aspect]
+        # Apply default relation if qualifiers are blank or only NOT
         if len(qualifiers) == 0 or qualifiers == ["NOT"]:
             qualifiers.append(default_relation)
         return qualifiers
@@ -285,7 +360,7 @@ class PaintIbaWriter:
         if gene_symbol is None:
             gene_symbol = annotated_node.gene_long_id.uniprot_id
 
-        qualifiers = self.get_qualifiers(annotation)
+        qualifiers = self.get_qualifiers(annotation.qualifiers, annotation.term)
         qualifiers_str = "|".join(qualifiers)
 
         first_with = annotation.evidence_list[0]
@@ -337,6 +412,34 @@ class PaintIbaWriter:
         lines = self.annotation_lines(annotated_node_collection)
         for l in lines:
             print(l)
+
+    def ibd_line(self, ibd_node: Ibd):
+        return "\t".join([
+            "PANTHER",
+            ibd_node.persistent_id,
+            ibd_node.persistent_id,
+            "|".join(self.get_qualifiers(ibd_node.qualifiers, ibd_node.term)),
+            ibd_node.term,
+            "PMID:21873635",
+            ibd_node.evidence_code,
+            "|".join(ibd_node.evidence_with_ids),
+            self.get_aspect(ibd_node.term),
+            "",  # DB Object Name placeholder
+            "",  # DB Object Synonym placeholder
+            "protein",
+            ibd_node.taxon_id,
+            ibd_node.creation_date,
+            "GO_Central",
+            "",  # Annotation Extension placeholder
+            "",  # Gene Product Form ID placeholder
+        ])
+
+    def ibd_lines(self, ibd_nodes: List[Ibd]):
+        lines = []
+        for node in ibd_nodes:
+            line = self.ibd_line(node)
+            lines.append(line)
+        return lines
 
 
 class PaintIbaXmlParser:

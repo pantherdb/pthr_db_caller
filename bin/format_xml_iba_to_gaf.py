@@ -18,6 +18,7 @@ parser.add_argument('-a', '--file_format', help="GO annotation format to output.
 parser.add_argument('-p', '--panther_version', help="PANTHER library version. E.g. 15.0, 16.0")
 parser.add_argument('-r', '--go_release_date', help="GO release date in YYYY-MM-DD format")
 parser.add_argument('-u', '--obsolete_uniprots', help="Filepath to list of PANTHER UniProt IDs not in UniProt GPI")
+parser.add_argument('-b', '--ibd_file_outpath', help="If supplied, filepath to write IBD file to")
 
 
 if __name__ == "__main__":
@@ -33,25 +34,35 @@ if __name__ == "__main__":
                                   obsolete_uniprots=args.obsolete_uniprots)
 
     anodes = paint.PaintIbaXmlParser.parse(args.file_xml)
+    if args.ibd_file_outpath:
+        ibd_nodes = anodes.ibd_nodes()
+        ibd_file = metadata.PaintIbdFile(writer=writer,
+                                         panther_version=args.panther_version,
+                                         go_release_date=args.go_release_date,
+                                         ibd_nodes=ibd_nodes)
+        ibd_file.write(args.ibd_file_outpath)
 
     # Split anodes by file to write to; by taxon
     if args.split_by_species:
-        iba_files = metadata.parse_iba_metadata_file(args.split_by_species)
+        iba_file_data = metadata.parse_iba_metadata_file(args.split_by_species)
         # Add the catch-all, fallback file
-        iba_files.append(metadata.PaintIbaFile(basename="gene_association.paint_other.gaf", taxon_id="other"))
+        iba_file_data.append({"basename": "gene_association.paint_other", "taxon_id": "other", "oscode": None})
         taxon_to_file = {}
-        for pif in iba_files:
-            taxon_to_file[pif.taxon_id] = pif
-            pif.writer = writer
-            pif.panther_version = args.panther_version
-            pif.go_release_date = args.go_release_date
+        for pif in iba_file_data:
+            iba_file = metadata.PaintIbaFile(writer=writer,
+                                             panther_version=args.panther_version,
+                                             go_release_date=args.go_release_date,
+                                             basename=pif["basename"],
+                                             taxon_id=pif["taxon_id"],
+                                             oscode=pif["oscode"])
+            taxon_to_file[iba_file.taxon_id] = iba_file
         for node in anodes:
             iba_file = taxon_to_file.get(node.taxon_id)
             if iba_file is None:
                 iba_file = taxon_to_file.get("other")
             iba_file.add_node(node)
         # Now that the iba_files have their annotated_nodes
-        for iba_file in iba_files:
+        for taxon_id, iba_file in taxon_to_file.items():
             # Specify format (gaf) and outdir and
             if iba_file.annotated_nodes:
                 full_filepath = os.path.join(args.out_directory, iba_file.basename)
