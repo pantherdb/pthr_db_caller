@@ -60,6 +60,13 @@ class TestPantherTreeGraph(unittest.TestCase):
         n = tree.node("AN98")
         self.assertEqual("Bacillus", n.get("species"), msg="Species Bacillus not found for node AN98")
 
+    def test_pruning(self):
+        tree = PantherTreeGraph.parse(tree_file="resources/test/PTHR10013.divided.tree.00")
+        tree.prune_species(taxon_list=["STAA8", "BACCR"])  # The only two species in this tree
+        self.assertEqual(len(tree), 5)  # 3 leaves + 2 internal = 5
+        tree.prune_species(taxon_list=["HUMAN", "MOUSE"])
+        self.assertEqual(len(tree), 0)  # Should prune all nodes in tree
+
 
 class TestXmlToGaf(unittest.TestCase):
     ASPECT_FILE = "resources/test/go_aspects.tsv"
@@ -76,7 +83,7 @@ class TestXmlToGaf(unittest.TestCase):
 
     def run_term_and_qualifiers_test(self, term: str, qualifiers: List, expected: List):
         annot = paint.Annotation(evidence_code="IBA", term=term, qualifiers=qualifiers, evidence_list=[])
-        self.assertEqual(self.WRITER.get_qualifiers(annot), expected)
+        self.assertEqual(self.WRITER.get_qualifiers(annot.qualifiers, annot.term), expected)
 
     def test_default_output_relations(self):
         # regulation of transcription by RNA polymerase II (P)

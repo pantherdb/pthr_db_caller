@@ -19,4 +19,7 @@ if __name__ == "__main__":
             for l in spf.readlines():
                 taxon_list.append(l.rstrip())
         tree.prune_species(taxon_list=taxon_list)
-    tree.write(args.out_file)
+    if len(tree) > 0:
+        tree.write(args.out_file)
+    else:
+        print("ERROR: Empty tree so nothing to write - {}".format(args.tree_file))

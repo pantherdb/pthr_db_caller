@@ -247,12 +247,16 @@ class PantherTreeGraph:
         if len(parents) > 1:
             print("WARNING: Tree node {} has multiple parents:".format(node), parents)
         if len(self.children(node)) < 2:
-            self.prune_up(parents[0])
+            if parents:
+                self.prune_up(parents[0])
             self.remove_node(node)
 
     def remove_node(self, node):
         # Here, we remove from both graph and phylo
         self.graph.remove_node(node)
+        if len(self) == 0:
+            # Nothing left to "prune" (.prune() below will break) so we are done here
+            return
         if self.phylo.tree.find_any(node):
             self.phylo.tree.prune(node)
 
