@@ -334,7 +334,8 @@ class PaintIbaWriter:
             for r in reader:
                 term = r[0]
                 aspect = r[1]
-                go_aspects[term] = ASPECT_LABEL_TO_SYMBOL[aspect]
+                if term and aspect:
+                    go_aspects[term] = ASPECT_LABEL_TO_SYMBOL[aspect]
         return go_aspects
 
     @staticmethod
@@ -464,12 +465,16 @@ class PaintIbaXmlParser:
         # This is where we have access to complex_terms and aspects
         annotated_node_collection = AnnotatedNodeCollection.initial()
 
-        tree = etree.parse(xml_path, PaintIbaXmlParser.PARSER)
-        node_list = tree.find("node_list")
-        for node in node_list.getchildren():
-            anode = AnnotatedNode.from_element(node)
-            anode.annotations = self.extract_annotations(node)
-            annotated_node_collection.add(anode)
+        try:
+            tree = etree.parse(xml_path, PaintIbaXmlParser.PARSER)
+            node_list = tree.find("node_list")
+            if node_list is not None:
+                for node in node_list.getchildren():
+                    anode = AnnotatedNode.from_element(node)
+                    anode.annotations = self.extract_annotations(node)
+                    annotated_node_collection.add(anode)
+        except Exception as e:
+            print(xml_path, e)
 
         return annotated_node_collection
 
