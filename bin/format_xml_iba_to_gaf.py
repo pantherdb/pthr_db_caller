@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import os
 from pthr_db_caller.models import paint, metadata
