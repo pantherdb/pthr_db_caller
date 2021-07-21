@@ -24,6 +24,7 @@ setup(
         "bin/etree2orthoxml.py",
         "bin/pthrtree2newick.py",
         "bin/taxon_term_tbl_lkp.py",
-        "bin/format_xml_iba_to_gaf.py"
+        "bin/format_xml_iba_to_gaf.py",
+        "bin/merge_orthoxml.py"
     ]
 )
