@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import csv
 import os
 import io
 from typing import List, Dict
@@ -11,6 +12,9 @@ from ete3 import orthoxml
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--xml_path', help="Path to directory containing OrthoXML files to merge")
+parser.add_argument('-p', '--pthr_version', help="PANTHER version from where the input files originate")
+parser.add_argument('-d', '--database_version', help="DB where gene IDs were minted")
+parser.add_argument('-o', '--organism_dat', help="Oscode-to-taxonID lookup from PANTHER build process")
 
 
 @dataclass
@@ -137,7 +141,17 @@ class GroupCollection:
 def sanitize_xml_str(xml_str: str):
     # Remove bytes syntax around strings. Ex: <gene protId=b'"ECOLI_P21829"' id="43"/>
     sanitized = xml_str.replace("b\'", "").replace("\'", "")
+    sanitized = sanitized.replace("version=\"0.300000\"", "version=\"0.3\"")  # Very hacky, sorry
     return sanitized
+
+
+def parse_organism_dat(organism_dat_path: str):
+    oscode_taxon_lkp = {}
+    with open(organism_dat_path) as odf:
+        reader = csv.reader(odf, delimiter="\t")
+        for r in reader:
+            oscode_taxon_lkp[r[2]] = r[5]
+    return oscode_taxon_lkp
 
 
 if __name__ == "__main__":
@@ -180,12 +194,22 @@ if __name__ == "__main__":
 
         all_groups.merge_collection(file_groups)
 
+    # Ready some element data
+    pthr_version = args.pthr_version
+    database_version = args.database_version
+    oscode_taxid_lkp = {}
+    if args.organism_dat:
+        oscode_taxid_lkp = parse_organism_dat(args.organism_dat)
     ### Write out compiled OrthoXML
     # Write out all genes
     oxml = orthoxml.orthoXML()
+    oxml.set_version(0.3)
+    oxml.set_origin("PANTHER")
+    oxml.set_originVersion(pthr_version)
     for oscode, gene_list in all_genes.species.items():
-        ortho_species = orthoxml.species(name=oscode)
-        ortho_db = orthoxml.database(name="Panther")
+        taxon_id = oscode_taxid_lkp.get(oscode)
+        ortho_species = orthoxml.species(name=oscode, NCBITaxId=taxon_id)
+        ortho_db = orthoxml.database(name="UniProt", version=database_version)
         ortho_genes = orthoxml.genes()
         for gene in gene_list:
             ortho_genes.add_gene(orthoxml.gene(protId=gene.gene_id, id=gene.orthoxml_id))
