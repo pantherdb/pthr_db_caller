@@ -91,6 +91,15 @@ class OrthoXmlGroup:
                     parent_group.add_paralogGroup(child_group)
         return parent_group
 
+    def __len__(self):
+        num_genes = 0
+        if self.genes:
+            num_genes = len(self.genes)
+        num_groups = 0
+        if self.groups:
+            num_groups = len(self.groups)
+        return num_genes + num_groups
+
 
 @dataclass
 class OrthologGroup(OrthoXmlGroup):
@@ -111,6 +120,14 @@ class GroupCollection:
         if self.groups is None:
             self.groups = []
         self.groups.append(group)
+
+    def remove_groups(self, groups: List[OrthoXmlGroup]):
+        new_groups_list = []
+        for g in self.groups:
+            if g not in groups:
+                # This group can stay
+                new_groups_list.append(g)
+        self.groups = new_groups_list
 
     def group_from_group_element(self, group_element: etree.Element):
         group = None
@@ -136,6 +153,9 @@ class GroupCollection:
 
     def __len__(self):
         return len(self.groups)
+
+    def __iter__(self):
+        return iter(self.groups)
 
 
 def sanitize_xml_str(xml_str: str):
@@ -185,6 +205,13 @@ if __name__ == "__main__":
             if node.tag == "groups":
                 file_groups.add_groups_from_groups_element(node)
 
+        # Extra filter to remove singleton groups produced by etree2orthoxml.py
+        groups_to_remove = []
+        for g in file_groups:
+            if len(g) < 2:
+                groups_to_remove.append(g)
+        file_groups.remove_groups(groups_to_remove)
+
         # Remint orthoxml_ids to avoid collisions across files
         for orthoxml_id in sorted(file_genes.genes.keys(), key=int):
             gene = file_genes.genes[orthoxml_id]
@@ -225,5 +252,5 @@ if __name__ == "__main__":
 
     # print this to STDOUT
     out_str = io.StringIO()
-    oxml.export(out_str, level=0, namespace_="")
+    oxml.export(out_str, level=0, namespace_="", namespacedef_="xmlns=\"http://orthoXML.org/2011/\"")
     print(sanitize_xml_str(out_str.getvalue()))
