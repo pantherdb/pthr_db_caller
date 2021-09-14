@@ -206,3 +206,20 @@ class NodeDatEntry(DatEntry):
 
 class NodeDatFile(DatFile):
     ENTRY_TYPE = NodeDatEntry
+
+
+class OrganismDatEntry(DatEntry):
+    pass
+
+
+class OrganismDatFile(DatFile):
+    ENTRY_TYPE = OrganismDatEntry
+
+    @staticmethod
+    def parse_organism_dat(organism_dat_path: str):
+        oscode_taxon_lkp = {}
+        with open(organism_dat_path) as odf:
+            reader = csv.reader(odf, delimiter="\t")
+            for r in reader:
+                oscode_taxon_lkp[r[2]] = r[5]
+        return oscode_taxon_lkp

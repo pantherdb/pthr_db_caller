@@ -1,7 +1,7 @@
 import unittest
 from typing import List
 from pthr_db_caller.models.panther import RefProtPantherMapping
-from pthr_db_caller.models import paint, metadata
+from pthr_db_caller.models import paint, metadata, orthoxml
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
 
@@ -98,6 +98,32 @@ class TestXmlToGaf(unittest.TestCase):
     def test_iba_metadata_file_parse(self):
         iba_files = metadata.parse_iba_metadata_file("resources/test/paint_iba_files.tsv")
         self.assertEqual(len(iba_files), 13)
+
+
+class TestOrthoXml(unittest.TestCase):
+    def test_parse_pthr_orthoxml(self):
+        # Parse preliminary-orthoXML format produced by divideHTtrees
+        xml_file = "resources/test/orthoxml_pthr/PTHR21234.xml"
+        groups = orthoxml.PthrOrthoXmlParser.parse(xml_file)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(len(groups.genes), 7)
+
+        xml_dir = "resources/test/orthoxml_pthr/"
+        groups = orthoxml.PthrOrthoXmlParser.parse(xml_dir)
+        self.assertEqual(len(groups), 3)  # Should equal number of input files?
+        self.assertEqual(len(groups.genes), 133)
+
+    def test_parse_orthoxml(self):
+        xml_file = "resources/test/orthoxml/PTHR21234.divided.tree.00.nhx.xml"
+        groups = orthoxml.PthrOrthoXmlParser.parse(xml_file)
+        self.assertEqual(len(groups), 2)
+        self.assertEqual(len(groups.genes), 7)
+
+        xml_dir = "resources/test/orthoxml/"
+        groups = orthoxml.PthrOrthoXmlParser.parse(xml_dir)
+        self.assertEqual(len(groups), 6)
+        self.assertEqual(len(groups.genes), 215)
+
 
 if __name__ == "__main__":
     unittest.main()
