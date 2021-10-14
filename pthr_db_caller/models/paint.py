@@ -297,13 +297,20 @@ class AnnotatedNodeCollection:
 
 
 class PaintIbaWriter:
-    def __init__(self, go_aspect: str, complex_termlist: str, file_format: str = "GAF", obsolete_uniprots: str = None):
+    def __init__(self, go_aspect: str, complex_termlist: str, file_format: str = "GAF", obsolete_uniprots: str = None,
+                 gene_symbol_correction_files: List = None, gene_name_correction_files: List = None):
         self.go_aspects = self.parse_go_aspect(go_aspect)
         self.complex_terms = self.parse_list_file(complex_termlist)
         self.file_format = file_format
         self.obsolete_uniprot_ids = None
         if obsolete_uniprots:
             self.obsolete_uniprot_ids = self.parse_list_file(obsolete_uniprots)
+        self.gene_symbol_corrections = None
+        if gene_symbol_correction_files:
+            self.gene_symbol_corrections = self.parse_key_value_file(gene_symbol_correction_files)
+        self.gene_name_corrections = None
+        if gene_name_correction_files:
+            self.gene_name_corrections = self.parse_key_value_file(gene_name_correction_files)
 
     def get_aspect(self, term):
         try:
@@ -325,6 +332,19 @@ class PaintIbaWriter:
         if len(qualifiers) == 0 or qualifiers == ["NOT"]:
             qualifiers.append(default_relation)
         return qualifiers
+
+    @staticmethod
+    def parse_key_value_file(key_value_file):
+        # Generic for key, value files to return dictionary/lookup
+        standard_dict = {}
+        with open(key_value_file) as kvf:
+            reader = csv.reader(kvf, delimiter="\t")
+            for r in reader:
+                key_name = r[0]
+                value = r[1]
+                if key_name and value:
+                    standard_dict[key_name] = value
+        return standard_dict
 
     @staticmethod
     def parse_go_aspect(go_aspect):
@@ -473,8 +493,12 @@ class PaintIbaXmlParser:
                     anode = AnnotatedNode.from_element(node)
                     anode.annotations = self.extract_annotations(node)
                     annotated_node_collection.add(anode)
-        except Exception as e:
+        # except AttributeError as e:  # When 'gene_symbol' is absent; crash for now
+        #     print(xml_path, e)
+        except AssertionError as e:  # When file is null; do not crash, just report out
             print(xml_path, e)
+        # except Exception as e:  # All others; allow crash to investigate
+        #     print(xml_path, e)
 
         return annotated_node_collection
 
