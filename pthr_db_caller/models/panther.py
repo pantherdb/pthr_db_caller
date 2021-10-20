@@ -121,8 +121,20 @@ class RefProtPantherMapping:
             for entry in self.entries:
                 out_f.write(str(entry) + "\n")
 
+    def species_counts_dict(self):
+        species_counts = {}
+        for seq_entry in self:
+            species = seq_entry.long_id.species_abbr
+            if species not in species_counts:
+                species_counts[species] = 0
+            species_counts[species] += 1
+        return species_counts
+
     def __iter__(self):
         return iter(self.entries)
+
+    def __len__(self):
+        return len(self.entries)
 
 
 class DatEntry:
