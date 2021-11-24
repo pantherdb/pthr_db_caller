@@ -1,6 +1,6 @@
 import unittest
 from typing import List
-from pthr_db_caller.models.panther import RefProtPantherMapping
+from pthr_db_caller.models.panther import RefProtPantherMapping, NodeDatFile
 from pthr_db_caller.models import paint, metadata, orthoxml
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
@@ -66,6 +66,11 @@ class TestPantherTreeGraph(unittest.TestCase):
         self.assertEqual(len(tree), 5)  # 3 leaves + 2 internal = 5
         tree.prune_species(taxon_list=["HUMAN", "MOUSE"])
         self.assertEqual(len(tree), 0)  # Should prune all nodes in tree
+
+    def test_with_node_dat(self):
+        node_dat = NodeDatFile.parse("resources/test/node_PTHR10000.dat")
+        tree = PantherTreeGraph.parse(tree_file="resources/test/PTHR10000.tree", tree_name="PTHR10000", node_file=node_dat)
+        self.assertEqual(tree.an_to_ptn.get("AN16"), "PTN004118870")
 
 
 class TestXmlToGaf(unittest.TestCase):

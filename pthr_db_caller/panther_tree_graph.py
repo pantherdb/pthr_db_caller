@@ -56,7 +56,8 @@ class PantherTreeGraph:
     def __init__(self, tree_name: str = None):
         self.graph = MultiDiGraph()
         self.name: str = tree_name
-        self.ptn_to_an: Dict = None
+        self.ptn_to_an: Dict = {}
+        self.an_to_ptn: Dict = {}
         self.phylo: PantherTreePhylo = None
 
     # Recursive method to fill graph from Phylo clade, parsing out node accession and species name (if present)
@@ -97,21 +98,19 @@ class PantherTreeGraph:
                 if an_id in self.graph:
                     self.graph.node[an_id]["long_id"] = long_id
 
-    def extract_node_properties(self, node_file: str):
-        node_dat_file = NodeDatFile.parse(node_file)
-        if self.ptn_to_an is None:
-            self.ptn_to_an = {}
+    def extract_node_properties(self, node_dat_file: NodeDatFile):
         for entry in node_dat_file:
             family_name, an_id = entry.an_id.split(":", maxsplit=1)
             if self.name == family_name and an_id in self.graph:
                 self.ptn_to_an[entry.ptn] = an_id
+                self.an_to_ptn[an_id] = entry.ptn
                 self.graph.node[an_id]["ptn"] = entry.ptn
                 self.graph.node[an_id]["node_type"] = entry.node_type
                 # event_type?
                 # branch_length?
 
     @staticmethod
-    def parse(tree_file: str, tree_name: str = None, node_file: str = None):
+    def parse(tree_file: str, tree_name: str = None, node_file: NodeDatFile = None):
         pthr_tree_graph = PantherTreeGraph(tree_name)
 
         # Parse Newick line
