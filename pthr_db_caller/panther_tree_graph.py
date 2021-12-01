@@ -1,4 +1,5 @@
 import copy
+import csv
 import networkx
 from networkx import MultiDiGraph
 from typing import List, Dict
@@ -58,6 +59,7 @@ class PantherTreeGraph:
         self.name: str = tree_name
         self.ptn_to_an: Dict = {}
         self.an_to_ptn: Dict = {}
+        self.an_to_sf: Dict = {}
         self.phylo: PantherTreePhylo = None
 
     # Recursive method to fill graph from Phylo clade, parsing out node accession and species name (if present)
@@ -108,6 +110,24 @@ class PantherTreeGraph:
                 self.graph.node[an_id]["node_type"] = entry.node_type
                 # event_type?
                 # branch_length?
+
+    def get_sf_for_an(self, an_id):
+        if an_id in self.an_to_sf:
+            return self.an_to_sf[an_id]
+        else:
+            parents = self.parents(an_id.split(":", maxsplit=1)[1])
+            if parents:
+                parent_an_id = "{}:{}".format(self.name, parents[0])  # Assuming always only one parent
+                self.an_to_sf[parent_an_id] = self.get_sf_for_an(parent_an_id)
+                return self.an_to_sf[parent_an_id]
+
+    def extract_sf_assignments(self, an_to_sf_seed: Dict):
+        self.an_to_sf = an_to_sf_seed
+
+        for n in self.graph.nodes():
+            full_an_id = "{}:{}".format(self.name, n)
+            if full_an_id not in self.an_to_sf:
+                self.an_to_sf[full_an_id] = self.get_sf_for_an(full_an_id)
 
     @staticmethod
     def parse(tree_file: str, tree_name: str = None, node_file: NodeDatFile = None):
