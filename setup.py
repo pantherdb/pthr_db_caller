@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pthr_db_caller",
-    version='0.1.1',
+    version='0.1.2',
     packages=find_packages(),
     author="dustine32",
     author_email="debert@usc.edu",
