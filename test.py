@@ -115,8 +115,8 @@ class TestOrthoXml(unittest.TestCase):
 
         xml_dir = "resources/test/orthoxml_pthr/"
         groups = orthoxml.PthrOrthoXmlParser.parse(xml_dir)
-        self.assertEqual(len(groups), 3)  # Should equal number of input files?
-        self.assertEqual(len(groups.genes), 133)
+        self.assertEqual(len(groups), 6)  # Should equal number of input files? No, PTHR39767.xml is empty
+        self.assertEqual(len(groups.genes), 491)
 
     def test_parse_orthoxml(self):
         xml_file = "resources/test/orthoxml/PTHR21234.divided.tree.00.nhx.xml"

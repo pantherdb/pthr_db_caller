@@ -121,6 +121,63 @@ class ParalogGroup(OrthoXmlGroup):
     groups: List[OrthoXmlGroup] = None
 
 
+def showIndent(outfile, level):
+    for idx in range(level):
+        outfile.write('    ')
+
+
+"""
+Hijacking this class to allow paralogGroups at the top-level
+"""
+class all_groups(orthoxml.groups):
+    def __init__(self, orthologGroup=None, paralogGroup=None, valueOf_=None):
+        super().__init__(orthologGroup, valueOf_)
+        if paralogGroup is None:
+            self.paralogGroup = []
+        else:
+            self.paralogGroup = paralogGroup
+
+    def get_paralogGroup(self): return self.paralogGroup
+    def set_paralogGroup(self, paralogGroup): self.paralogGroup = paralogGroup
+    def add_paralogGroup(self, value): self.paralogGroup.append(value)
+    def insert_paralogGroup(self, index, value): self.paralogGroup[index] = value
+
+    def exportChildren(self, outfile, level, namespace_='ortho:', name_='groups', fromsubclass_=False):
+        super().exportChildren(outfile, level, namespace_, name_, fromsubclass_)
+        for paralogGroup_ in self.paralogGroup:
+            paralogGroup_.export(outfile, level, namespace_, name_='paralogGroup')
+
+    def hasContent_(self):
+        if (
+            self.orthologGroup or self.paralogGroup
+            ):
+            return True
+        else:
+            return False
+
+    def exportLiteralChildren(self, outfile, level, name_):
+        super().exportLiteralChildren(outfile, level, name_)
+        showIndent(outfile, level)
+        outfile.write('paralogGroup=[\n')
+        level += 1
+        for paralogGroup_ in self.paralogGroup:
+            showIndent(outfile, level)
+            outfile.write('model_.group(\n')
+            paralogGroup_.exportLiteral(outfile, level, name_='group')
+            showIndent(outfile, level)
+            outfile.write('),\n')
+        level -= 1
+        showIndent(outfile, level)
+        outfile.write('],\n')
+
+    def buildChildren(self, child_, node, nodeName_, fromsubclass_=False):
+        super().buildChildren(child_, node, nodeName_, fromsubclass_)
+        if nodeName_ == 'paralogGroup':
+            obj_ = all_groups.factory()
+            obj_.build(child_)
+            self.paralogGroup.append(obj_)
+
+
 @dataclass
 class GroupCollection:
     groups: List = None
@@ -193,10 +250,13 @@ class GroupCollection:
             oxml.add_species(ortho_species)
 
         # Write out all groups
-        ortho_groups = orthoxml.groups()
+        ortho_groups = all_groups()
         oxml.set_groups(ortho_groups)
         for g in self:
-            ortho_groups.add_orthologGroup(g.to_orthoxml_obj())
+            if isinstance(g, ParalogGroup):
+                ortho_groups.add_paralogGroup(g.to_orthoxml_obj())
+            else:
+                ortho_groups.add_orthologGroup(g.to_orthoxml_obj())
 
         # print this to STDOUT
         out_str = io.StringIO()
