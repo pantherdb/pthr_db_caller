@@ -19,18 +19,27 @@ class ProteinClassGraph(networkx.MultiDiGraph):
         for r in pc_relationships:
             pc_graph.add_edge(r.parent.id, r.child.id) # parent, child
 
-        # PC, name
+        # PC, code, name, definition
         in_pc = open(class_file)
-        pc_reader = csv.reader(in_pc, delimiter=";")
+        pc_reader = csv.reader(in_pc, delimiter="\t")
         pcs = {}
-        next(pc_reader)  # skip header
         for pc in pc_reader:
-            pcs[pc[0]] = pc[1]
-            if pc[0] not in pc_graph:
-                pc_graph.add_node(pc[0])
+            if len(pc) > 0 and pc[0].startswith("PC"):  # skip headers and commented lines
+                pc_id = pc[0]
+                pc_name = pc[2]
+                pcs[pc_id] = pc_name
+                if pc_id not in pc_graph:
+                    pc_graph.add_node(pc_id)
+                pc_graph.node[pc_id]["name"] = pc_name
         in_pc.close()
 
         return pc_graph
+
+    def descendants(self, node, reflexive=False):
+        nodes = list(networkx.descendants(self, node))
+        if reflexive:
+            nodes.append(node)
+        return nodes
 
     @staticmethod
     def show_graph(graph):
