@@ -71,8 +71,10 @@ def parse_results_to_fam_data_struct(results):
 
 
 class PthrCommentHelper:
-    def __init__(self, comments_tablename, classification_version_sid):
-        self.db_caller = DBCaller()
+    def __init__(self, comments_tablename, classification_version_sid, db_caller: DBCaller = None):
+        self.db_caller = db_caller
+        if self.db_caller is None:
+            self.db_caller = DBCaller()
         self.comments_tablename = comments_tablename
         self.classification_version_sid = classification_version_sid
 

@@ -7,8 +7,10 @@ class CurationStatus:
 
 
 class PaintCurationStatusHelper:
-    def __init__(self, curation_status_tablename, classification_version_sid):
-        self.db_caller = DBCaller()
+    def __init__(self, curation_status_tablename, classification_version_sid, db_caller: DBCaller = None):
+        self.db_caller = db_caller
+        if self.db_caller is None:
+            self.db_caller = DBCaller()
         self.curation_status_tablename = curation_status_tablename
         self.classification_version_sid = classification_version_sid
 
