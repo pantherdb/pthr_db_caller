@@ -98,7 +98,7 @@ class PantherTreeGraph:
                 an_id, long_id = l.split(":", maxsplit=1)
                 long_id = long_id.rstrip().rstrip(";")
                 if an_id in self.graph:
-                    self.graph.node[an_id]["long_id"] = long_id
+                    self.graph.nodes[an_id]["long_id"] = long_id
 
     def extract_node_properties(self, node_dat_file: NodeDatFile):
         for entry in node_dat_file:
@@ -106,8 +106,8 @@ class PantherTreeGraph:
             if self.name == family_name and an_id in self.graph:
                 self.ptn_to_an[entry.ptn] = an_id
                 self.an_to_ptn[an_id] = entry.ptn
-                self.graph.node[an_id]["ptn"] = entry.ptn
-                self.graph.node[an_id]["node_type"] = entry.node_type
+                self.graph.nodes[an_id]["ptn"] = entry.ptn
+                self.graph.nodes[an_id]["node_type"] = entry.node_type
                 # event_type?
                 # branch_length?
 

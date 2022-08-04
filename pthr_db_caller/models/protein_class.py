@@ -30,7 +30,7 @@ class ProteinClassGraph(networkx.MultiDiGraph):
                 pcs[pc_id] = pc_name
                 if pc_id not in pc_graph:
                     pc_graph.add_node(pc_id)
-                pc_graph.node[pc_id]["name"] = pc_name
+                pc_graph.nodes[pc_id]["name"] = pc_name
         in_pc.close()
 
         return pc_graph
