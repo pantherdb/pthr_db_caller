@@ -205,7 +205,7 @@ class PantherTreeGraph:
         return "_".join([species, nid])
 
     def node(self, node):
-        return self.graph.node.get(node)
+        return self.graph.nodes.get(node)
 
     def root(self):
         for n in self.graph.nodes():
