@@ -14,7 +14,7 @@ setup(
         "biopython==1.73",
         "networkx>=2.3",
         "matplotlib==3.1.1",
-        "PyYAML==3.12",
+        "PyYAML==5.4",
         "ete3>=3.1.2",
         "lxml>=4.6.3",
         "dataclasses"
