@@ -219,6 +219,22 @@ class NodeDatEntry(DatEntry):
 class NodeDatFile(DatFile):
     ENTRY_TYPE = NodeDatEntry
 
+    def __init__(self, filename: str):
+        super().__init__(filename)
+        self.ptn_to_an: Dict[str, str] = {}
+        self.an_to_ptn: Dict[str, str] = {}
+
+    @classmethod
+    def parse(cls, filename: str):
+        node_dat_file: cls = super().parse(filename)
+        entry: cls.ENTRY_TYPE
+        for entry in node_dat_file:
+            an = entry.an_id
+            ptn = entry.ptn
+            node_dat_file.ptn_to_an[ptn] = an
+            node_dat_file.an_to_ptn[an] = ptn
+        return node_dat_file
+
 
 class OrganismDatEntry(DatEntry):
     pass
