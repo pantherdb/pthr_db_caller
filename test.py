@@ -1,9 +1,18 @@
 import unittest
 from typing import List
+from pthr_db_caller import db_caller
 from pthr_db_caller.models.panther import RefProtPantherMapping, NodeDatFile
 from pthr_db_caller.models import paint, metadata, orthoxml
 from pthr_db_caller.models.refprot_file import RefProtGeneAccFile, RefProtIdmappingFile, RefProtFastaFile
 from pthr_db_caller.panther_tree_graph import PantherTreeGraph
+
+
+class TestDbCaller(unittest.TestCase):
+    def test_load_a_config(self):
+        config = db_caller.DBCallerConfig(config_path="resources/test/db_config_test.yaml")
+        self.assertEqual(config.dbname, "fake_db")
+        self.assertEqual(config.username, "postgres")
+        self.assertEqual(config.host, "db_test.internet.biz")
 
 
 class TestRefProtMapping(unittest.TestCase):

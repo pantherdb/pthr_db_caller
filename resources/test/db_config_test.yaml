@@ -1,0 +1,17 @@
+DB_DEFINITION:
+  comment: The database profile to use with DB caller.
+  type: string
+  value: db_test
+
+DB_DEFINITIONS:
+  comment: A list of credentials that DB caller can use.
+  type: list
+  value:
+    - id: db_test
+      host: "db_test.internet.biz"
+      dbname: "fake_db"
+      username: "postgres"
+      pword: "really_secure_pword"
+      load_dir: "/where_is_data/data/"
+      classification_version_sid: 29
+

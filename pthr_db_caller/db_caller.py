@@ -19,11 +19,15 @@ class DBCallerConfig:
     def __init__(self, config_path="config/config.yaml"):
 
         with open(config_path) as f:
-            cfg = yaml.load(f)
+            cfg = yaml.safe_load(f)
 
+        chosen_df = None
         for df in cfg["DB_DEFINITIONS"]["value"]:
             if df["id"] == cfg["DB_DEFINITION"]["value"]:
                 chosen_df = df
+        if chosen_df is None:
+            print("ERROR: No DB definition found for '{}'".format(cfg["DB_DEFINITION"]["value"]))
+            exit()
 
         self.host = chosen_df["host"]
         self.dbname = chosen_df["dbname"]
