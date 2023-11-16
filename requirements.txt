@@ -1,7 +1,7 @@
 psycopg2>=2.9.9
 PyYAML>=6.0.1
-biopython==1.73
+biopython>=1.73
 ete3>=3.1.2
-matplotlib==3.1.1
+matplotlib>=3.1.1
 networkx>=2.7
 lxml>=4.6.3
