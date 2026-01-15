@@ -194,6 +194,11 @@ class GeneDatEntry(DatEntry):
 class GeneDatFile(DatFile):
     ENTRY_TYPE = GeneDatEntry
 
+    def find_long_id(self, long_id: PthrSequence):
+        for entry in self.entries:
+            if entry.long_id == long_id:
+                return entry
+
 
 class NodeDatEntry(DatEntry):
     def __init__(self, an_id: str, ptn: str, node_type: str, event_type: str, branch_length: float):
